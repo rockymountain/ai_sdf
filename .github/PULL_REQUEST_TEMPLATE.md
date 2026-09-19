@@ -1,5 +1,14 @@
 ## Change declaration
 
+For multiple tasks, repeat the entire declaration block, including its task/level
+and risk attestation. Each declared T1/T2 task needs its own commit marker and a
+matching changed implementation path. Together the tasks must cover every
+significant changed file. T2-sensitive files require a covering T2 task.
+
+If every changed file is explicitly exempt or generated under the PR base's
+constitution/policies.yaml, omit the declaration blocks. Canonical design files,
+code, tests, governance, CI, and unclassified paths still require coverage.
+
 Traceability Task: DEV-___
 Traceability Level: T_
 

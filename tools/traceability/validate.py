@@ -134,7 +134,12 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
     if schema_errors or not isinstance(trace, dict):
         return trace if isinstance(trace, dict) else {}
 
-    policies = load_yaml(repo / "constitution/policies.yaml")["traceability"]["levels"]
+    policies_doc = load_yaml(repo / "constitution/policies.yaml")
+    try:
+        provenance_exclusions(policies_doc)
+    except ValueError as exc:
+        result.error(f"constitution/policies.yaml: {exc}")
+    policies = policies_doc["traceability"]["levels"]
     tasks = trace.get("tasks", {})
     referenced: set[str] = set(tasks)
 
@@ -202,7 +207,8 @@ def git(repo: Path, *args: str) -> str:
 
 
 def changed_files(repo: Path, base_ref: str, head_ref: str) -> list[str]:
-    return [x for x in git(repo, "diff", "--name-only", f"{base_ref}..{head_ref}").splitlines() if x]
+    # NUL framing preserves whitespace; disabling rename detection checks both paths.
+    return [x for x in git(repo, "diff", "--name-only", "--no-renames", "-z", f"{base_ref}..{head_ref}").split("\x00") if x]
 
 
 def commit_messages(repo: Path, base_ref: str, head_ref: str) -> list[str]:
@@ -214,6 +220,45 @@ def parse_pr_declaration(body: str) -> tuple[str | None, str | None]:
     task_m = re.search(r"(?mi)^\s*Traceability Task:\s*(DEV-[0-9]{3,})\s*$", body)
     level_m = re.search(r"(?mi)^\s*Traceability Level:\s*(T[0-2])\s*$", body)
     return (task_m.group(1) if task_m else None, level_m.group(1) if level_m else None)
+
+
+def parse_pr_declarations(body: str, result: ValidationErrorSet) -> list[tuple[str, str | None, str]]:
+    """Each task/level/attestation block ends at the next task declaration."""
+    starts = list(re.finditer(r"(?mi)^\s*Traceability Task:[^\r\n]*", body))
+    declarations = []
+    seen = set()
+    for index, match in enumerate(starts):
+        end = starts[index + 1].start() if index + 1 < len(starts) else len(body)
+        block = body[match.start():end]
+        task_id, level = parse_pr_declaration(block)
+        if not task_id:
+            result.error("PR body: invalid Traceability Task declaration")
+            continue
+        if task_id in seen:
+            result.error(f"PR body: duplicate task declaration {task_id}")
+        if len(re.findall(r"(?mi)^\s*Traceability Level:", block)) != 1:
+            result.error(f"PR body: {task_id} requires exactly one Traceability Level")
+        seen.add(task_id)
+        declarations.append((task_id, level, block))
+    return declarations
+
+
+def provenance_exclusions(policies: dict[str, Any]) -> list[str]:
+    """Missing classification is conservative; malformed governance fails closed."""
+    if not isinstance(policies, dict):
+        raise ValueError("governance must be a mapping")
+    config = policies.get("change_provenance", {})
+    if not isinstance(config, dict) or set(config) - {"default", "exempt_paths", "generated_paths"}:
+        raise ValueError("change_provenance must contain only default, exempt_paths, generated_paths")
+    if config.get("default", "required") != "required":
+        raise ValueError("change_provenance.default must be required")
+    exclusions = []
+    for category in ("exempt_paths", "generated_paths"):
+        patterns = config.get(category, [])
+        if not isinstance(patterns, list) or any(not isinstance(p, str) or not p for p in patterns):
+            raise ValueError(f"change_provenance.{category} must be a list of nonempty path patterns")
+        exclusions.extend(patterns)
+    return exclusions
 
 
 def has_risk_attestation(body: str, level: str) -> bool:
@@ -242,46 +287,57 @@ def path_matches(changed: list[str], patterns: list[str]) -> bool:
 
 
 def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_ref: str, head_ref: str, result: ValidationErrorSet) -> None:
-    task_id, declared_level = parse_pr_declaration(body)
-    if not task_id:
-        result.error("PR body: missing machine-readable 'Traceability Task: DEV-nnn'")
-        return
-    node = trace.get("tasks", {}).get(task_id)
-    if not node:
-        result.error(f"PR body: declared task {task_id} is not present in traceability")
-        return
-    actual_level = node.get("level")
-    if declared_level != actual_level:
-        result.error(f"PR body: declared level {declared_level!r} != {task_id} level {actual_level!r}")
-    if actual_level in {"T1", "T2"} and not has_risk_attestation(body, actual_level):
-        result.error(f"PR body: {actual_level} risk attestation is incomplete")
-
     try:
         messages = commit_messages(repo, base_ref, head_ref)
         files = changed_files(repo, base_ref, head_ref)
-    except RuntimeError as exc:
+        base_policies = yaml.safe_load(git(repo, "show", f"{base_ref}:constitution/policies.yaml"))
+        if not isinstance(base_policies, dict):
+            raise ValueError("base governance must be a mapping")
+        exclusions = provenance_exclusions(base_policies)
+        policies_doc = load_yaml(repo / "constitution/policies.yaml")
+        provenance_exclusions(policies_doc)  # Validate proposed policy; never self-exempt.
+    except (RuntimeError, ValueError, yaml.YAMLError) as exc:
         result.error(f"git evidence: {exc}")
         return
 
-    policies_doc = load_yaml(repo / "constitution/policies.yaml")
-    t2_path_triggers = policies_doc.get("traceability", {}).get("t2_path_triggers", [])
-    if actual_level != "T2":
-        triggered = [path for path in files if path_matches([path], t2_path_triggers)]
-        if triggered:
-            result.error(
-                f"risk classification: {task_id} is {actual_level} but changed files hit T2 path triggers: {triggered}"
-            )
+    t2_path_triggers = (
+        base_policies.get("traceability", {}).get("t2_path_triggers", [])
+        + policies_doc.get("traceability", {}).get("t2_path_triggers", [])
+    )
+    declarations = parse_pr_declarations(body, result)
+    declared_nodes = []
+    for task_id, declared_level, block in declarations:
+        node = trace.get("tasks", {}).get(task_id)
+        if not node:
+            result.error(f"PR body: declared task {task_id} is not present in traceability")
+            continue
+        declared_nodes.append(node)
+        actual_level = node.get("level")
+        if declared_level != actual_level:
+            result.error(f"PR body: declared level {declared_level!r} != {task_id} level {actual_level!r}")
+        if actual_level in {"T1", "T2"}:
+            if not has_risk_attestation(block, actual_level):
+                result.error(f"PR body: {task_id} {actual_level} risk attestation is incomplete")
+            marker = COMMIT_MARKER(task_id)
+            if not any(marker in msg for msg in messages):
+                result.error(f"git evidence: no PR commit message contains required marker {marker}")
+            patterns = node.get("implementation", {}).get("paths", [])
+            if not path_matches(files, patterns):
+                result.error(
+                    f"git evidence: diff does not touch any declared implementation path for {task_id}; "
+                    f"declared={patterns}, changed={files}"
+                )
 
-    if actual_level in {"T1", "T2"}:
-        marker = COMMIT_MARKER(task_id)
-        if not any(marker in msg for msg in messages):
-            result.error(f"git evidence: no PR commit message contains required marker {marker}")
-        patterns = node.get("implementation", {}).get("paths", [])
-        if not path_matches(files, patterns):
-            result.error(
-                f"git evidence: diff does not touch any declared implementation path for {task_id}; "
-                f"declared={patterns}, changed={files}"
-            )
+    for path in files:
+        owners = [node for node in declared_nodes
+                  if path_matches([path], node.get("implementation", {}).get("paths", []))]
+        if path_matches([path], t2_path_triggers):
+            if not any(node.get("level") == "T2" for node in owners):
+                result.error(f"risk classification: {path} hit T2 path triggers but has no declared T2 task coverage")
+        elif path_matches([path], exclusions):
+            continue
+        if not owners:
+            result.error(f"git evidence: uncovered changed path {path}; declare a task with matching implementation.paths")
 
 
 def load_pr_body(args: argparse.Namespace) -> str | None:
