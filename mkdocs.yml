@@ -1,0 +1,38 @@
+site_name: AI-Native Software Design Factory
+site_description: Reference Architecture, Roadmap, Decisions and Evolution
+docs_dir: .site-src
+site_dir: site
+
+theme:
+  name: material
+  language: vi
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+
+  - toc:
+      permalink: true
+
+  - pymdownx.details
+  - pymdownx.superfences
+
+  - pymdownx.highlight:
+      anchor_linenums: true
+
+  - pymdownx.tabbed:
+      alternate_style: true

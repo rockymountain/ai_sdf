@@ -110,8 +110,6 @@ Factory được xây trên bốn nguyên lý nền tảng:
 3. **Every irreversible decision requires explicit human accountability.** AI có thể phân tích, đề xuất, kiểm chứng và thực thi; con người giữ thẩm quyền đối với business intent, major architecture trade-off, risk acceptance, security exception và irreversible migration.
 4. **Every material change must be traceable.** Không có implementation change quan trọng nào được tồn tại như một “orphan change” không truy được về intent/design upstream và evidence downstream.
 
-![Kiến trúc tổng thể của AI-Native SDF](sdf_work/diagrams/overall.png){width=6.5in}
-
 Nền tảng đã được Phase 0 chứng minh là **Git + canonical structured artifacts + deterministic validation + CI + human gate + Codex-assisted execution**. **VS Code** tiếp tục là developer cockpit phù hợp; **MCP** và **Graphify** là capability mục tiêu/experiment có điều kiện, không phải dependency bắt buộc của Phase 0. Kiến trúc dài hạn vẫn là **Codex-first, not Codex-dependent**: Codex chỉ là một implementation của Agent Runtime, còn truth, workflow, policies, tools, schemas và evaluation suites phải độc lập với AI provider.
 
 ## 1.1 Phase 0 validated state
@@ -201,8 +199,6 @@ Token, model call, retry và review pass MUST được xem như tài nguyên s�
 
 Lean là nguyên tắc tối ưu flow; PDCA là vòng học và kiểm soát.
 
-![PDCA trong SDF](sdf_work/diagrams/pdca.png){width=6.2in}
-
 ## 4.1 Lean rules
 
 Factory SHOULD áp dụng:
@@ -268,8 +264,6 @@ Phase 0 đã kiểm chứng đoạn **Specification/Design → Decision → Impl
 **Đúng, mọi implementation task có tác động vật chất tới software MUST truy vết được tới design intent liên quan.** Tuy nhiên không có nghĩa “mỗi tài liệu thiết kế phải map 1:1 với một task”. Quan hệ thực tế là **many-to-many và hai chiều**.
 
 Một requirement có thể sinh nhiều design components và nhiều task. Một task có thể thực hiện đồng thời nhiều requirement, ADR hoặc contract. Điều Factory phải bảo đảm là **không có material task hoặc material change bị orphan**.
-
-![Traceability chain chuẩn](sdf_work/diagrams/traceability.png){width=6.5in}
 
 Trace chain chuẩn:
 
@@ -438,8 +432,6 @@ Status MUST là structured data đủ để Agent và CI hiểu.
 # 9. Agent architecture
 
 SDF sử dụng logical layers, không bắt buộc mỗi layer là một service/model riêng.
-
-![Các lớp AI Agent](sdf_work/diagrams/agents.png){width=6.5in}
 
 ## 9.1 Layer 1 - Orchestrator
 

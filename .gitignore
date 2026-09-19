@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .venv/
 prompts/
+site/
+.site-src/
+node_modules/
+.wrangler/

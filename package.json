@@ -1,0 +1,11 @@
+{
+  "name": "ai-sdf-docs",
+  "private": true,
+  "scripts": {
+    "docs:build": "mkdocs build --strict",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.135.0"
+  }
+}
