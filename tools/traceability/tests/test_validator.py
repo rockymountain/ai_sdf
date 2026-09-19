@@ -21,7 +21,7 @@ SPEC.loader.exec_module(validator)
 def copy_repo() -> tuple[tempfile.TemporaryDirectory, Path]:
     td = tempfile.TemporaryDirectory()
     dst = Path(td.name) / "repo"
-    shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+    shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(".git", "__pycache__", ".venv"))
     return td, dst
 
 

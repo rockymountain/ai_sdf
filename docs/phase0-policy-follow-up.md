@@ -20,7 +20,7 @@ are allocated here; prioritize and allocate each follow-up separately.
 - Change provenance: exclusions already canonical and base-governed. Defer
   migration of precedence and mandatory-default semantics into further gates.
 
-## Environment reproducibility debt
+## Environment reproducibility debt recorded at DEV-004
 
 CI uses Python 3.13. requirements-dev.txt pins PyYAML 6.0.2 and jsonschema 4.25.1.
 The current local interpreter is Python 3.14.6 with PyYAML 6.0.3 and jsonschema
@@ -35,6 +35,17 @@ work, not needed to implement the selected policy family. Follow-up acceptance:
 declare one supported local/CI Python setup, install the declared dependencies in
 a clean environment, record versions, and run the same complete suite locally and
 in CI. Preserve historical evidence with the versions actually used.
+
+### Closed by DEV-005
+
+DEV-005 implements the shared .python-version and fully pinned requirements-dev.txt
+contract, isolated venv bootstrap, and CI consumption. TEST-005 records successful
+fresh-environment installation, exact versions/imports, all 57 tests, canonical/QG-004
+validation, and AGENTS.md reproduction. Its real PR evidence command closes the
+committed trace chain. Historical TEST records remain unchanged.
+The remaining non-blocking limitation is version-level rather than bit-identical
+OS/archive reproducibility: Python, Git, package availability, and platform-specific
+wheels remain external prerequisites. No extra environment manager is introduced.
 
 ## Remaining governance work
 

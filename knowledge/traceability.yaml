@@ -84,3 +84,31 @@ tasks:
         - docs/phase0-policy-follow-up.md
     verification:
       - TEST-004
+
+  DEV-005:
+    level: T2
+    intent:
+      - FR-005
+    design:
+      - CMP-002
+    decisions:
+      - ADR-005
+    implementation:
+      paths:
+        - .python-version
+        - requirements-dev.txt
+        - .github/workflows/sdf-validation.yml
+        - tools/check_environment.py
+        - tools/traceability/tests/test_environment.py
+        - tools/traceability/tests/test_validator.py
+        - README.md
+        - docs/phase0-policy-follow-up.md
+        - knowledge/traceability.yaml
+        - design/architecture/CMP-002.md
+        - design/requirements/FR-005.md
+        - design/decisions/ADR-005.md
+        - design/tasks/DEV-005.md
+        - design/verification/TEST-005.md
+        - examples/DEV-005-pr-body.md
+    verification:
+      - TEST-005
