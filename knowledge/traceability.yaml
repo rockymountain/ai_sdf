@@ -34,3 +34,27 @@ tasks:
         - tools/traceability/tests/test_validator.py
     verification:
       - TEST-002
+
+  DEV-003:
+    level: T2
+    intent:
+      - FR-003
+    design:
+      - CMP-002
+    decisions:
+      - ADR-003
+    implementation:
+      paths:
+        - constitution/policies.yaml
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_change_provenance.py
+        - .github/PULL_REQUEST_TEMPLATE.md
+        - knowledge/traceability.yaml
+        - design/architecture/CMP-002.md
+        - design/requirements/FR-003.md
+        - design/decisions/ADR-003.md
+        - design/tasks/DEV-003.md
+        - design/verification/TEST-003.md
+        - examples/DEV-003-pr-body.md
+    verification:
+      - TEST-003
