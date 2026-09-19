@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "title",
+    "status",
+    "version",
+    "traceability_level",
+    "owner"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^DEV-[0-9]{3,}$"
+    },
+    "kind": {
+      "const": "task"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "proposed",
+        "accepted",
+        "active",
+        "implemented",
+        "verified",
+        "deprecated",
+        "superseded",
+        "retired"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "traceability_level": {
+      "enum": [
+        "T0",
+        "T1",
+        "T2"
+      ]
+    },
+    "owner": {
+      "type": "string"
+    }
+  }
+}

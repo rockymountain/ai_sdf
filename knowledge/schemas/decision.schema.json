@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "title",
+    "status",
+    "version",
+    "decision_status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ADR-[0-9]{3,}$"
+    },
+    "kind": {
+      "const": "decision"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "proposed",
+        "accepted",
+        "active",
+        "implemented",
+        "verified",
+        "deprecated",
+        "superseded",
+        "retired"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "decision_status": {
+      "enum": [
+        "proposed",
+        "accepted",
+        "superseded",
+        "deprecated"
+      ]
+    }
+  }
+}

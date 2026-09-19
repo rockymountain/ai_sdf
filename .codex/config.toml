@@ -1,0 +1,15 @@
+# Phase 0 project-local Codex posture.
+# Loaded only when the repository is trusted by Codex.
+# Canonical Factory governance remains in constitution/*.yaml.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+allow_login_shell = false
+
+[sandbox_workspace_write]
+network_access = false
+
+[agents]
+# Phase 0 is Human-as-Orchestrator. Keep concurrency deliberately low even if
+# later phases introduce specialist subagents.
+max_concurrent_threads_per_session = 2

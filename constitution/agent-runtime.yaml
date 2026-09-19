@@ -1,0 +1,22 @@
+version: 1
+runtime_projection:
+  target: AGENTS.md
+  title: AI-Native SDF Phase 0 — Agent Instructions
+  preamble: Generated from canonical governance. Do not edit AGENTS.md by hand.
+  invariants:
+    - Never invent or silently renumber IDs.
+    - Read YAML frontmatter for artifact identity; filenames are not identity.
+    - Every meaningful implementation change must declare a DEV-* task and traceability level.
+    - T1/T2 changes must have upstream intent and verification evidence.
+    - T2 changes must include design plus decision/contract evidence.
+    - Do not downgrade T2-worthy changes to T1. Architecture, NFR, security, data model, external contract, reliability, compliance, or migration impact is T2.
+    - Never modify canonical governance merely to make a failing change pass without explicit human approval.
+    - Deterministic validation runs before semantic or LLM review.
+    - Human approval is required for architecture tradeoffs, risk acceptance, security exceptions, irreversible migration, or policy changes.
+    - Prefer small, explicit, reversible changes.
+  before_change_read:
+    - constitution/principles.yaml
+    - constitution/policies.yaml
+    - constitution/quality-gates.yaml
+    - knowledge/traceability.yaml
+  validation_command: python tools/traceability/validate.py --repo .

@@ -1,0 +1,27 @@
+version: 1
+gates:
+  - id: QG-001
+    name: artifact-schema
+    deterministic: true
+    blocks_merge: true
+  - id: QG-002
+    name: reference-integrity
+    deterministic: true
+    blocks_merge: true
+  - id: QG-003
+    name: traceability-policy
+    deterministic: true
+    blocks_merge: true
+  - id: QG-004
+    name: implementation-evidence
+    deterministic: true
+    blocks_merge: true
+  - id: QG-005
+    name: risk-attestation
+    deterministic: true
+    blocks_merge: true
+  - id: QG-006
+    name: human-review
+    deterministic: false
+    blocks_merge: true
+    scope: semantic-risk-and-level-classification

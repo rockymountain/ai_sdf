@@ -1,0 +1,21 @@
+version: 1
+
+tasks:
+  DEV-001:
+    level: T2
+    intent:
+      - PROB-001
+      - FR-001
+      - NFR-001
+    design:
+      - CMP-001
+    decisions:
+      - ADR-001
+    contracts:
+      - EVT-001
+    implementation:
+      paths:
+        - src/document_indexing.py
+        - tools/traceability/tests/test_patient_zero.py
+    verification:
+      - TEST-001

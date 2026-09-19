@@ -1,0 +1,14 @@
+version: 1
+principles:
+  - id: SDF-P-001
+    statement: Canonical truth precedes automation.
+  - id: SDF-P-002
+    statement: Everything derived must be reproducible from canonical artifacts and code.
+  - id: SDF-P-003
+    statement: Deterministic validation runs before AI semantic review.
+  - id: SDF-P-004
+    statement: Every meaningful software change must be traceable to intent.
+  - id: SDF-P-005
+    statement: Irreversible or material risk decisions require explicit human accountability.
+  - id: SDF-P-006
+    statement: Agent runtime is replaceable; factory knowledge and policy are provider-neutral.

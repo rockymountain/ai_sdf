@@ -1,0 +1,55 @@
+version: 1
+traceability:
+  levels:
+    T0:
+      description: Housekeeping with no runtime behavior change.
+      requires:
+        upstream_intent: false
+        design: false
+        decision_or_contract: false
+        implementation: true
+        verification: false
+        risk_attestation: false
+    T1:
+      description: Runtime behavior change without architecture/NFR/security/data/external-contract/reliability/compliance/migration
+        impact.
+      requires:
+        upstream_intent: true
+        design: false
+        decision_or_contract: false
+        implementation: true
+        verification: true
+        risk_attestation: true
+    T2:
+      description: Material design change affecting architecture, NFR, security, data,
+        external contract, reliability, compliance, or migration.
+      requires:
+        upstream_intent: true
+        design: true
+        decision_or_contract: true
+        implementation: true
+        verification: true
+        risk_attestation: true
+  escalation_triggers:
+  - architecture
+  - nfr
+  - security
+  - data_model
+  - external_contract
+  - reliability
+  - compliance
+  - migration
+  t2_path_triggers:
+  - design/architecture/**
+  - design/decisions/**
+  - design/contracts/**
+  - migrations/**
+  - infra/**
+artifact_identity:
+  source: yaml_frontmatter
+  filename_is_identity: false
+  duplicate_ids: forbidden
+implementation_evidence:
+  t1_t2_require_commit_marker: true
+  commit_marker_format: '[DEV-n]'
+  t1_t2_require_changed_path_match: true

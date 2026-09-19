@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "title",
+    "status",
+    "version",
+    "contract_type"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(API|EVT)-[0-9]{3,}$"
+    },
+    "kind": {
+      "const": "contract"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "proposed",
+        "accepted",
+        "active",
+        "implemented",
+        "verified",
+        "deprecated",
+        "superseded",
+        "retired"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "contract_type": {
+      "enum": [
+        "api",
+        "event"
+      ]
+    }
+  }
+}

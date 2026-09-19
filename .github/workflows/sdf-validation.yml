@@ -1,0 +1,45 @@
+name: SDF Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install validator dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Verify generated agent instructions
+        run: python tools/generate_agents.py --repo . --check
+
+      - name: Static canonical validation
+        run: python tools/traceability/validate.py --repo .
+
+      - name: Unit tests
+        run: python -m unittest discover -s tools/traceability/tests -v
+
+      - name: PR trace + Git evidence
+        if: github.event_name == 'pull_request'
+        run: >-
+          python tools/traceability/validate.py
+          --repo .
+          --base-ref "${{ github.event.pull_request.base.sha }}"
+          --head-ref "${{ github.event.pull_request.head.sha }}"
+          --github-event "$GITHUB_EVENT_PATH"
