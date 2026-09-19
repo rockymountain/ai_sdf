@@ -58,3 +58,29 @@ tasks:
         - examples/DEV-003-pr-body.md
     verification:
       - TEST-003
+
+  DEV-004:
+    level: T2
+    intent:
+      - FR-004
+    design:
+      - CMP-002
+    decisions:
+      - ADR-004
+    implementation:
+      paths:
+        - constitution/quality-gates.yaml
+        - knowledge/schemas/implementation-evidence-gate.schema.json
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_quality_gate.py
+        - .github/workflows/sdf-validation.yml
+        - knowledge/traceability.yaml
+        - design/architecture/CMP-002.md
+        - design/requirements/FR-004.md
+        - design/decisions/ADR-004.md
+        - design/tasks/DEV-004.md
+        - design/verification/TEST-004.md
+        - examples/DEV-004-pr-body.md
+        - docs/phase0-policy-follow-up.md
+    verification:
+      - TEST-004

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate", "policy"],
+  "properties": {
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "deterministic", "blocks_merge", "scope", "policy"],
+      "properties": {
+        "id": {"const": "QG-004"},
+        "name": {"const": "implementation-evidence"},
+        "deterministic": {"const": true},
+        "blocks_merge": {"const": true},
+        "policy": {"const": "implementation_evidence"},
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["event", "levels"],
+          "properties": {
+            "event": {"const": "pull_request"},
+            "levels": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"enum": ["T0", "T1", "T2"]}
+            }
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["t1_t2_require_commit_marker", "commit_marker_format", "t1_t2_require_changed_path_match"],
+      "properties": {
+        "t1_t2_require_commit_marker": {"type": "boolean"},
+        "t1_t2_require_changed_path_match": {"type": "boolean"},
+        "commit_marker_format": {
+          "type": "string",
+          "pattern": "^[^\\r\\n]*DEV-n[^\\r\\n]*$",
+          "not": {"pattern": "[\\r\\n]"}
+        }
+      }
+    }
+  }
+}
