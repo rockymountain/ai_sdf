@@ -19,3 +19,18 @@ tasks:
         - tools/traceability/tests/test_patient_zero.py
     verification:
       - TEST-001
+
+  DEV-002:
+    level: T2
+    intent:
+      - FR-002
+    design:
+      - CMP-002
+    decisions:
+      - ADR-002
+    implementation:
+      paths:
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_validator.py
+    verification:
+      - TEST-002

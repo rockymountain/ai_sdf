@@ -75,10 +75,74 @@ class ValidatorTests(unittest.TestCase):
 
     def test_orphan_task_artifact_fails(self):
         td, repo = copy_repo(); self.addCleanup(td.cleanup)
-        task = (repo / "design/tasks/DEV-001.md").read_text().replace("DEV-001", "DEV-002")
-        (repo / "design/tasks/DEV-002.md").write_text(task)
+        path = repo / "knowledge/traceability.yaml"
+        trace = yaml.safe_load(path.read_text())
+        del trace["tasks"]["DEV-002"]
+        path.write_text(yaml.safe_dump(trace, sort_keys=False))
         result, _, _ = self.run_static(repo)
         self.assertTrue(any("orphan task artifact DEV-002" in e for e in result.errors), result.errors)
+
+    def check_path_evidence(self, paths, level="T2", status="active"):
+        td, repo = copy_repo(); self.addCleanup(td.cleanup)
+        # External files must not qualify even when a literal or glob finds them.
+        (repo.parent / "outside.py").write_text("# outside repository\n")
+        trace_path = repo / "knowledge/traceability.yaml"
+        trace = yaml.safe_load(trace_path.read_text())
+        trace["tasks"]["DEV-002"]["level"] = level
+        trace["tasks"]["DEV-002"]["implementation"]["paths"] = paths
+        trace_path.write_text(yaml.safe_dump(trace, sort_keys=False))
+        task_path = repo / "design/tasks/DEV-002.md"
+        metadata = validator.extract_frontmatter(task_path)
+        metadata.update(traceability_level=level, status=status)
+        task_path.write_text("---\n" + yaml.safe_dump(metadata) + "---\n")
+        result, _, _ = self.run_static(repo)
+        return result.errors
+
+    def test_existing_literal_implementation_file_passes(self):
+        for level in ("T1", "T2"):
+            with self.subTest(level=level):
+                self.assertEqual([], self.check_path_evidence(["src/document_indexing.py"], level))
+
+    def test_missing_literal_implementation_file_fails(self):
+        for level in ("T1", "T2"):
+            with self.subTest(level=level):
+                errors = self.check_path_evidence(["src/nonexistent.py"], level)
+                self.assertTrue(any("DEV-002.implementation.paths" in e and "src/nonexistent.py" in e for e in errors), errors)
+
+    def test_matching_implementation_globs_pass(self):
+        for level in ("T1", "T2"):
+            for pattern in ("src/*.py", "tools/traceability/tests/test_*.py", "tools/**/test_*.py"):
+                with self.subTest(level=level, pattern=pattern):
+                    self.assertEqual([], self.check_path_evidence([pattern], level))
+
+    def test_unmatched_implementation_glob_fails(self):
+        for level in ("T1", "T2"):
+            with self.subTest(level=level):
+                errors = self.check_path_evidence(["src/nonexistent_*.py"], level)
+                self.assertTrue(any("DEV-002.implementation.paths" in e and "src/nonexistent_*.py" in e for e in errors), errors)
+
+    def test_each_implementation_entry_must_resolve(self):
+        errors = self.check_path_evidence(["src/document_indexing.py", "src/nonexistent_*.py"])
+        self.assertTrue(any("src/nonexistent_*.py" in e for e in errors), errors)
+
+    def test_directories_and_external_files_are_not_implementation_files(self):
+        for pattern in ("src", "tools/trace*", "../outside.py", "../outside*.py"):
+            with self.subTest(pattern=pattern):
+                errors = self.check_path_evidence([pattern])
+                self.assertTrue(any("DEV-002.implementation.paths" in e and pattern in e for e in errors), errors)
+
+    def test_current_statuses_require_resolved_globs(self):
+        for status in ("draft", "proposed", "accepted", "active", "implemented", "verified"):
+            with self.subTest(status=status):
+                errors = self.check_path_evidence(["src/nonexistent_*.py"], status=status)
+                self.assertTrue(any("DEV-002.implementation.paths" in e for e in errors), errors)
+
+    def test_t0_and_historical_tasks_retain_existing_path_checks(self):
+        for level, status in (("T0", "active"), ("T2", "deprecated"), ("T2", "superseded"), ("T2", "retired")):
+            with self.subTest(level=level, status=status):
+                self.assertEqual([], self.check_path_evidence(["src/nonexistent_*.py"], level, status))
+                errors = self.check_path_evidence(["src/nonexistent.py"], level, status)
+                self.assertTrue(any("does not exist" in e for e in errors), errors)
 
     def test_t1_attestation_must_be_complete(self):
         body = "Traceability Task: DEV-002\nTraceability Level: T1\n- [x] I confirm this change does **NOT** affect architecture boundaries or dependencies."

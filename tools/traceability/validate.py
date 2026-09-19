@@ -106,6 +106,23 @@ def scan_artifacts(repo: Path, result: ValidationErrorSet) -> dict[str, Artifact
     return registry
 
 
+def implementation_path_resolves(repo: Path, pattern: str) -> bool:
+    """Resolve post-change evidence to a file inside the repository, excluding Git metadata."""
+    repo = repo.resolve()
+    try:
+        candidates = repo.glob(pattern) if any(ch in pattern for ch in "*?[") else [repo / pattern]
+        for path in candidates:
+            resolved = path.resolve()
+            if (resolved.is_relative_to(repo)
+                    and ".git" not in resolved.relative_to(repo).parts
+                    and path.is_file()):
+                return True
+    except (OSError, ValueError, NotImplementedError):
+        # Invalid/unreadable patterns cannot establish implementation evidence.
+        return False
+    return False
+
+
 def validate_traceability(repo: Path, registry: dict[str, Artifact], result: ValidationErrorSet) -> dict[str, Any]:
     trace_path = repo / "knowledge" / "traceability.yaml"
     trace = load_yaml(trace_path)
@@ -155,10 +172,18 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
                 if art is None:
                     result.error(f"{task_id}.{field}: referenced artifact {ref} does not exist")
 
+        current_material_task = (
+            level in {"T1", "T2"} and task_art is not None
+            and task_art.metadata.get("status") not in {"deprecated", "superseded", "retired"}
+        )
         for pattern in node.get("implementation", {}).get("paths", []):
-            # Declared path must currently resolve unless it is a glob; prevents fictional evidence.
+            # Preserve literal-existence checks for every level and lifecycle status.
             if not any(ch in pattern for ch in "*?[") and not (repo / pattern).exists():
                 result.error(f"{task_id}.implementation.paths: {pattern} does not exist")
+            elif current_material_task and not implementation_path_resolves(repo, pattern):
+                result.error(
+                    f"{task_id}.implementation.paths: {pattern} does not resolve to an existing repository file"
+                )
 
     # Task artifacts may not exist outside the trace graph.
     for artifact_id, artifact in registry.items():
