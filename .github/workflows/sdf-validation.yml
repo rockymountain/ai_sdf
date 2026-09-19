@@ -21,24 +21,29 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.13'
+          python-version-file: .python-version
 
-      - name: Install validator dependencies
-        run: pip install -r requirements-dev.txt
+      - name: Create isolated validation environment
+        run: |
+          python tools/check_environment.py --python-only
+          python -m venv .venv
+          .venv/bin/python -m pip --isolated install --only-binary=:all: -r requirements-dev.txt
+          .venv/bin/python -m pip check
+          .venv/bin/python tools/check_environment.py
 
       - name: Verify generated agent instructions
-        run: python tools/generate_agents.py --repo . --check
+        run: .venv/bin/python tools/generate_agents.py --repo . --check
 
       - name: Canonical artifacts and QG-004 configuration
-        run: python tools/traceability/validate.py --repo .
+        run: .venv/bin/python tools/traceability/validate.py --repo .
 
       - name: Unit tests
-        run: python -m unittest discover -s tools/traceability/tests -v
+        run: .venv/bin/python -m unittest discover -s tools/traceability/tests -v
 
       - name: PR provenance and base/proposed QG-004 evidence
         if: github.event_name == 'pull_request'
         run: >-
-          python tools/traceability/validate.py
+          .venv/bin/python tools/traceability/validate.py
           --repo .
           --base-ref "${{ github.event.pull_request.base.sha }}"
           --head-ref "${{ github.event.pull_request.head.sha }}"
