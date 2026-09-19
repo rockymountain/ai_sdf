@@ -1,7 +1,14 @@
 ---
+id: CP-REFERENCE-ARCHITECTURE
+type: closure-artifact
+phase: 0
+status: final
+author: SDF-Orchestrator
+baseline_author: "Design baseline tổng hợp từ quá trình phân tích"
+supersedes: "1.0 - Proposed Build Baseline"
 title: "AI-Native Software Design Factory (SDF)"
 subtitle: "Reference Architecture, Operating Model & Implementation Blueprint"
-author: "Design baseline tổng hợp từ quá trình phân tích"
+version: "1.1 - Phase 0 Validated Baseline"
 date: "19/09/2026"
 lang: vi-VN
 ---
@@ -45,6 +52,11 @@ lang: vi-VN
 31. Kiến trúc mục tiêu tóm tắt
 32. Kết luận
 33. Phụ lục và nguồn tham khảo
+   - Phụ lục A. Artifact ID conventions gợi ý
+   - Phụ lục B. Ví dụ traceability record
+   - Phụ lục C. Ví dụ canonical Agent Spec
+   - Phụ lục D. Các nguồn kỹ thuật hiện hành tham khảo
+   - Phụ lục E. Phase 0 realization crosswalk
 
 ```{=openxml}
 <w:p><w:r><w:br w:type="page"/></w:r></w:p>
@@ -55,20 +67,37 @@ lang: vi-VN
 | Thuộc tính | Giá trị |
 |---|---|
 | Tên | AI-Native Software Design Factory (SDF) |
-| Phiên bản | 1.0 - Proposed Build Baseline |
+| Phiên bản | 1.1 - Phase 0 Validated Baseline |
 | Ngày | 19/09/2026 |
 | Mục tiêu | Định nghĩa kiến trúc tham chiếu, operating model, governance và lộ trình triển khai SDF có AI Agent |
 | Đối tượng | Software Architect, Tech Lead, Developer, Platform Engineer, Security, SRE, Product/Engineering Manager |
-| Phạm vi | Từ idea thô đến design, implementation, runtime evidence và continuous evolution |
-| Trạng thái | Sẵn sàng dùng làm baseline trước khi bắt tay xây dựng |
+| Phạm vi | Từ idea thô đến design, implementation, runtime evidence và continuous evolution; phân biệt rõ validated current state với target architecture |
+| Trạng thái | Phase 0 foundation đã được kiểm chứng; Phase 1+ tiếp tục theo progressive delivery |
 
 ## Quy ước chuẩn tắc {.unnumbered}
 
-Trong tài liệu này:
+Trong tài liệu này, các từ khóa chuẩn tắc **MUST**, **SHOULD** và **MAY** được dùng theo tinh thần RFC 2119/RFC 8174:
 
 - **MUST**: bắt buộc để duy trì tính đúng đắn hoặc khả năng quản trị của Factory.
-- **SHOULD**: mặc định nên thực hiện; chỉ bỏ qua khi có lý do rõ ràng.
+- **SHOULD**: mặc định nên thực hiện; chỉ bỏ qua khi có lý do rõ ràng và được ghi nhận.
 - **MAY**: tùy chọn theo bối cảnh.
+
+Các đoạn mô tả **validated state** ghi những gì đã được Phase 0 chứng minh bằng repository/tests/CI. Các đoạn **target** hoặc **deferred** mô tả kiến trúc mục tiêu chưa được claim là đã triển khai.
+
+## Closure Pack Authority Matrix {.unnumbered}
+
+| Nội dung | Authority |
+|---|---|
+| Architecture / operating model / target blueprint | `docs/reference/ai-native-sdf-reference-architecture.md` ([CP-REFERENCE-ARCHITECTURE]) |
+| Chronological Phase 0 history | `docs/phase0-evolution-log.md` ([CP-EVOLUTION-LOG]) |
+| Decision navigation / realization mapping | `docs/phase0-decision-index.md` ([CP-DECISION-INDEX]) |
+| Phase closure evidence | `docs/phase0-exit-report.md` ([CP-PHASE0-EXIT]) |
+| AI cost / telemetry / circuit-breaker measurement contract | `docs/phase0-ai-cost-baseline.md` ([CP-AI-COST-BASELINE]) |
+| Actual architectural decisions | `design/decisions/ADR-*` |
+| Executable governance | `constitution/*` |
+| Trace truth | `knowledge/traceability.yaml` |
+
+Closure Pack artifacts MUST summarize, index, measure hoặc attest; chúng MUST NOT override canonical decisions, executable governance hoặc trace truth.
 
 # 1. Executive Summary
 
@@ -83,7 +112,23 @@ Factory được xây trên bốn nguyên lý nền tảng:
 
 ![Kiến trúc tổng thể của AI-Native SDF](sdf_work/diagrams/overall.png){width=6.5in}
 
-Nền tảng triển khai ngắn hạn được khuyến nghị là **VS Code + Codex + Git + structured artifacts + MCP + Graphify + CI**. Tuy nhiên, kiến trúc dài hạn phải là **Codex-first, not Codex-dependent**: Codex chỉ là một implementation của Agent Runtime, còn truth, workflow, policies, tools, schemas và evaluation suites phải độc lập với AI provider.
+Nền tảng đã được Phase 0 chứng minh là **Git + canonical structured artifacts + deterministic validation + CI + human gate + Codex-assisted execution**. **VS Code** tiếp tục là developer cockpit phù hợp; **MCP** và **Graphify** là capability mục tiêu/experiment có điều kiện, không phải dependency bắt buộc của Phase 0. Kiến trúc dài hạn vẫn là **Codex-first, not Codex-dependent**: Codex chỉ là một implementation của Agent Runtime, còn truth, workflow, policies, tools, schemas và evaluation suites phải độc lập với AI provider.
+
+## 1.1 Phase 0 validated state
+
+Phase 0 đã chứng minh năm capability theo chuỗi:
+
+1. [DEV-001](../../design/tasks/DEV-001.md): governed vertical slice / Patient Zero;
+2. [DEV-002](../../design/tasks/DEV-002.md): declared implementation evidence phải resolve tới file thực;
+3. [DEV-003](../../design/tasks/DEV-003.md): changed file phải có declared task provenance;
+4. [DEV-004](../../design/tasks/DEV-004.md): canonical governance có thể trực tiếp điều khiển deterministic enforcement;
+5. [DEV-005](../../design/tasks/DEV-005.md): local và CI dùng chung reproducible validation environment.
+
+Từ đây, tài liệu dùng ba nhãn khái niệm:
+
+- **VALIDATED**: đã được Phase 0 chứng minh;
+- **TARGET**: kiến trúc mục tiêu chưa được claim là đã triển khai;
+- **DEFERRED/EXPERIMENTAL**: capability được giữ trong blueprint nhưng chỉ được promote khi evidence/ROI đạt.
 
 # 2. Mục tiêu và Non-goals
 
@@ -110,7 +155,9 @@ SDF không nhằm:
 - yêu cầu tất cả dự án dùng Scrum;
 - tạo một universal multi-agent platform trước khi nhu cầu thực tế được chứng minh;
 - coi Knowledge Graph là source of truth duy nhất;
-- cho AI tự phê duyệt major risk hoặc policy mà không có accountable human.
+- cho AI tự phê duyệt major risk hoặc policy mà không có accountable human;
+- cho autonomous agent retry vô hạn hoặc phụ thuộc vào human ngồi canh terminal để dừng credit consumption;
+- đưa Graphify, multi-agent orchestration hoặc một platform layer vào production chỉ vì “có vẻ thông minh” nếu chưa chứng minh ROI và quality.
 
 # 3. Nguyên tắc thiết kế
 
@@ -141,6 +188,14 @@ Consistency, traceability, security, NFR và policy validation MUST chạy trong
 ## 3.5 Human authority, machine execution
 
 Human tập trung vào intent, trade-off, exception và accountability. AI tập trung vào analysis, synthesis, generation, validation, impact analysis, implementation và repetitive checks.
+
+## 3.6 Deterministic-first
+
+Điều có thể quyết định bằng schema, Git diff, filesystem, test, static rule hoặc policy evaluator MUST được xử lý deterministically trước khi gọi AI. AI SHOULD dành cho ambiguity, synthesis, trade-off và judgment.
+
+## 3.7 AI reasoning là metered production resource
+
+Token, model call, retry và review pass MUST được xem như tài nguyên sản xuất có chi phí. Autonomous execution MUST có hard budget và circuit breaker; cost optimization MAY thay đổi model/context/routing nhưng MUST NOT làm yếu traceability, required governance hoặc human accountability.
 
 # 4. Lean + PDCA là operating philosophy
 
@@ -173,6 +228,12 @@ Một rule Lean quan trọng:
 | Product/System | architecture roadmap | evolve system | drift, debt, SLO, incidents | refactor/migrate |
 | Factory | process/policy | run SDF | lead time, defects, cost, overrides | cải tiến workflow/agents |
 
+## 4.3 Lean rule cho AI cost
+
+Factory MUST đo chi phí theo **accepted change**, không tối ưu từng model call cô lập. Retry loop, context reread, duplicate reviewer và whole-repo prompting là waste nếu không tạo thêm quality/risk reduction tương xứng.
+
+Autonomous execution MUST dùng `MAX_ATTEMPTS = 2`. Nếu attempt thứ hai thất bại, runtime/orchestrator MUST mở circuit, chặn model call tiếp theo, lưu evidence và trả failure cho human queue. Human không phải là circuit breaker.
+
 # 5. End-to-end lifecycle
 
 Flow chuẩn:
@@ -195,6 +256,10 @@ Flow chuẩn:
 | Implementation | hiện thực hóa | code/test/IaC/migration | PR review |
 | Observe | thu evidence | telemetry, SLO, incidents | continuous |
 | Evolution | học và thay đổi | drift/debt/change proposals | continuous/periodic |
+
+## 5.2 Phase 0 realization
+
+Phase 0 đã kiểm chứng đoạn **Specification/Design → Decision → Implementation → Verification → PR/CI human gate** bằng Patient Zero và các change [DEV-001](../../design/tasks/DEV-001.md) đến [DEV-005](../../design/tasks/DEV-005.md). Observe/Learn/Evolve ở runtime vẫn là **TARGET** cho các phase sau.
 
 # 6. Traceability: nguyên tắc bắt buộc từ design đến từng implementation task
 
@@ -265,6 +330,18 @@ verifies_with:
   - TEST-E2E-27
 ```
 
+## 6.6 Phase 0 executable traceability invariants
+
+Phase 0 đã biến một phần traceability từ guideline thành executable contract:
+
+- [ADR-002](../../design/decisions/ADR-002.md) / [DEV-002](../../design/tasks/DEV-002.md): mỗi `implementation.paths` entry của current T1/T2 task MUST resolve độc lập tới ít nhất một file thực bên trong repository;
+- [ADR-003](../../design/decisions/ADR-003.md) / [DEV-003](../../design/tasks/DEV-003.md): mỗi significant changed path MUST có covering task provenance trừ khi base canonical governance phân loại explicit exempt/generated;
+- T2-sensitive path MUST có covering T2 task;
+- PR-declared T1/T2 task MUST giữ evidence riêng theo policy;
+- human reviewer MUST reject semantic under-classification ngay cả khi deterministic CI pass.
+
+Validator hiện chứng minh structural/provenance correctness; semantic relevance và architecture truth vẫn là human-accountability boundary.
+
 # 7. Knowledge architecture: Intent, Reality và Evolution
 
 SDF cần ba graph logic, không nhất thiết ba database vật lý.
@@ -294,7 +371,9 @@ Tool-derived, biểu diễn “hệ thống thực tế là gì”:
 - runtime service/dependency topology;
 - telemetry observations.
 
-Graphify phù hợp làm một thành phần của Reality/Context Graph vì dự án hiện cung cấp deterministic AST extraction cho code, provenance cho quan hệ `EXTRACTED`/`INFERRED`, query/path operations và MCP access. Nhưng Graphify MUST NOT trở thành sole canonical authority cho design intent.
+Graphify phù hợp làm **candidate adapter** của Reality/Context Graph vì nó có thể giúp materialize code/dependency context. Nhưng Graphify MUST NOT trở thành sole canonical authority cho design intent và MUST NOT được promote chỉ vì feature richness.
+
+Graphify/context optimization chỉ được chấp nhận khi experiment chứng minh giảm **ít nhất 70% average input tokens per accepted DEV task** so với declared chat-heavy baseline cho comparable work, đồng thời không làm tăng escaped defect/governance violation. Không đạt threshold này thì integration MUST được remove, redesign hoặc reject như Lean waste. Measurement contract nằm tại [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md).
 
 ## 7.3 Evolution Graph
 
@@ -353,6 +432,8 @@ Ví dụ trạng thái:
 - API: Experimental → Stable → Deprecated → Removed
 
 Status MUST là structured data đủ để Agent và CI hiểu.
+
+**Phase 0 status:** lifecycle tối thiểu của canonical artifacts/task đã được dùng; Change Proposal/Evolution Graph đầy đủ vẫn là **TARGET**, không được claim là đã implement chỉ vì blueprint mô tả nó.
 
 # 9. Agent architecture
 
@@ -439,6 +520,16 @@ Sau deployment:
 - Architecture Health Agent
 - Deprecation Agent
 
+## 9.8 Risk- and cost-based activation
+
+SDF MUST NOT mặc định chạy toàn bộ specialist/critic chain cho mọi change. Context Agent SHOULD tạo Context Pack nhỏ theo task/diff/graph neighborhood; Orchestrator SHOULD route theo risk và cost:
+
+- T0/simple: deterministic/no-AI khi có thể;
+- bounded T1: một implementation path, critic on-demand;
+- T2/ambiguity: reasoning mạnh hơn, independent review khi justified, human gate bắt buộc.
+
+Multi-agent concurrency MAY được dùng khi evidence cho thấy lead-time/quality benefit lớn hơn token/coordination overhead.
+
 # 10. Agent governance và trust boundaries
 
 Agent MUST có identity, version, permissions và output contract.
@@ -483,6 +574,14 @@ Tối thiểu ba gate:
 
 Không phải mọi T1 task cần manual architecture gate; policy có thể tự động approve low-risk changes khi fitness functions/evals đạt.
 
+## 10.3 Deterministic gate và human gate
+
+Deterministic gate trả lời câu hỏi có thể chứng minh bằng machine evidence: schema, reference, provenance, changed-path coverage, declared policy, test, environment. Human gate quyết định semantic truth, risk acceptance, level classification và material policy/design approval. Deterministic PASS MUST NOT được diễn giải là semantic approval.
+
+## 10.4 Autonomous execution circuit breaker
+
+Agent runtime/orchestrator MUST enforce `MAX_ATTEMPTS = 2`. Sau failure thứ hai, circuit MUST mở trước khi bất kỳ model call tiếp theo nào được phát hành; failing command/log và attempt summaries MUST được persist; execution MUST trả failure/human-attention event. Prompt instruction đơn thuần không phải enforcement boundary.
+
 # 11. Agent Runtime abstraction: Codex-first, not Codex-dependent
 
 ## 11.1 Ngắn hạn dùng chung Codex
@@ -526,6 +625,8 @@ AGENTS.md SHOULD được xem là một Codex-facing compiled instruction layer 
 
 MCP phù hợp cho tools/context integration. ARI là abstraction riêng cho việc chạy Agent. Phân tách này tránh phụ thuộc protocol/tool lifecycle của một vendor.
 
+**Phase 0 status:** provider-neutral ARI vẫn là **TARGET**. Phase 0 chỉ chứng minh được provider-independent canonical truth/governance/evidence và Codex-facing generated instructions, chưa chứng minh runtime adapter portability.
+
 Lưu ý hiện tại: Codex vẫn kết nối được external MCP servers; standalone Codex MCP server đã bị loại bỏ và OpenAI hướng integration cần conversation/auth/approval sang app-server protocol, vốn đang được ghi là experimental cho production. Vì vậy SDF không nên lấy Codex app-server hay một proprietary endpoint làm control-plane core.
 
 # 12. VS Code + Codex + extensions: chiến lược ngắn hạn và dài hạn
@@ -539,9 +640,11 @@ Lưu ý hiện tại: Codex vẫn kết nối được external MCP servers; sta
 - Git: canonical versioning;
 - AGENTS.md: Codex-specific project guidance;
 - `.codex/config.toml`: local/project runtime config;
-- MCP: tool/context integration;
-- Graphify: Reality/Context graph adapter;
+- MCP: tool/context integration khi capability yêu cầu;
+- Graphify: Reality/Context graph **experiment có ROI gate**, không phải dependency mặc định;
 - scripts + CI: deterministic checks và quality gates.
+
+**Phase 0 realized subset:** Git + canonical artifacts + generated `AGENTS.md` + deterministic validator/tests + GitHub CI + human PR gate + reproducible Python validation environment.
 
 Ưu điểm:
 
@@ -606,6 +709,25 @@ software/
 
 Nguyên tắc: `graphify-out/`, rendered docs, diagrams generated và reports là derived artifacts; canonical source nằm ở `design/`, `constitution/`, `knowledge/`, `agents/`, code và tests.
 
+## 13.1 Phase 0 realized repository controls
+
+Phase 0 bổ sung các control/reproducibility artifacts quan trọng:
+
+```text
+.python-version
+requirements-dev.txt
+.github/workflows/sdf-validation.yml
+constitution/quality-gates.yaml
+constitution/policies.yaml
+knowledge/traceability.yaml
+knowledge/schemas/*
+tools/check_environment.py
+tools/traceability/*
+docs/reference/*
+```
+
+`docs/reference/` chứa architecture/reference material; nó MUST NOT thay thế `design/decisions/ADR-*`, `constitution/*` hoặc `knowledge/traceability.yaml` làm canonical authority cho decisions, governance hay trace truth.
+
 # 14. Architecture fitness functions
 
 Principle chỉ có giá trị lâu dài nếu được biến thành executable checks.
@@ -623,6 +745,12 @@ Fitness functions chạy ở:
 - pre-commit/lint khi rẻ;
 - PR/CI khi cần cross-file/repo analysis;
 - continuous drift monitoring khi phụ thuộc runtime reality.
+
+## 14.1 Phase 0 proof: executable canonical governance
+
+[ADR-004](../../design/decisions/ADR-004.md) / [DEV-004](../../design/tasks/DEV-004.md) biến QG-004 `implementation-evidence` thành vertical slice policy-as-code: canonical gate scope và canonical policy flags/marker format điều khiển evaluator. Missing/malformed mandatory governance fail closed; base và proposed obligations đều được enforce để PR không tự weaken gate rồi hưởng lợi trong chính PR đó.
+
+QG-004 là **proof of architecture**, không có nghĩa QG-001/002/003/005/006 đều đã migrated sang executable canonical gate.
 
 # 15. Technical Debt, incidents và lessons là first-class data
 
@@ -649,6 +777,8 @@ Incident không kết thúc ở postmortem:
 
 Nếu cùng failure mode lặp lại, Factory phải coi đó là defect của process/control plane, không chỉ defect của team implementation.
 
+Phase 0 realized change history được tóm tắt tại [CP-EVOLUTION-LOG](../phase0-evolution-log.md). Deferred policy work được giữ như debt/follow-up thay vì bị copy thành competing canonical decision.
+
 # 16. Runtime evidence và design drift
 
 Runtime evidence SHOULD được nối với NFR/design assumptions:
@@ -671,6 +801,8 @@ Drift detection so sánh Intent Graph với Reality Graph:
 
 Drift không luôn là lỗi; nó có thể là signal để cập nhật intent hoặc rollback reality. Quyết định cần explicit resolution.
 
+**Phase 0 status:** runtime evidence ingestion và automatic Intent-vs-Reality drift loop vẫn là **TARGET**.
+
 # 17. Security cho chính Software Design Factory
 
 Factory có quyền mạnh, vì vậy cần threat model riêng.
@@ -685,7 +817,9 @@ Factory có quyền mạnh, vì vậy cần threat model riêng.
 - compromised generated code/dependency;
 - poisoned Knowledge Graph hoặc inferred edge bị coi như fact;
 - log/telemetry làm lộ sensitive context;
-- unreviewed autonomous deployment.
+- unreviewed autonomous deployment;
+- runaway retry/model-call loop gây uncontrolled credit consumption;
+- malicious hoặc accidental replacement của validator/CI enforcement code.
 
 ## 17.2 Security controls
 
@@ -699,7 +833,9 @@ MUST có:
 - artifact signing/audit trail theo mức cần thiết;
 - data classification và context policy;
 - dependency/source verification;
-- human approval cho critical exception/deploy/migration.
+- human approval cho critical exception/deploy/migration;
+- runtime-level hard circuit breaker cho autonomous attempts;
+- required review/branch protection cho validator, CI và governance code.
 
 # 18. Data classification và context policy
 
@@ -746,6 +882,18 @@ MUST có runbook/script để rebuild:
 
 Critical canonical data MUST không phụ thuộc ephemeral AI session memory.
 
+## 19.3 Phase 0 reproducible validation environment
+
+[ADR-005](../../design/decisions/ADR-005.md) / [DEV-005](../../design/tasks/DEV-005.md) thiết lập:
+
+- `.python-version` = Python 3.14.6 làm interpreter declaration chung;
+- `requirements-dev.txt` pin validation runtime closure;
+- local và CI tạo isolated venv;
+- install dùng `pip --isolated --only-binary=:all:`;
+- `pip check` + `tools/check_environment.py` xác minh version, isolation và import location.
+
+Contract này là version-level reproducibility; bit-identical OS image, offline wheel mirror và artifact hash supply chain MAY được bổ sung khi risk/scale yêu cầu.
+
 # 20. Cost & resource governance
 
 Multi-agent có thể tăng chất lượng nhưng cũng tăng token/compute. Factory SHOULD có:
@@ -762,6 +910,20 @@ Multi-agent có thể tăng chất lượng nhưng cũng tăng token/compute. Fa
 Nguyên tắc:
 
 > Dùng deterministic computation cho điều có thể xác định; dùng AI cho ambiguity, synthesis và judgment.
+
+## 20.1 Mandatory autonomous execution budget
+
+Autonomous runtime MUST enforce `MAX_ATTEMPTS = 2`. Failure thứ hai MUST mở circuit, block further model calls, persist evidence và trả non-success/human-attention result. Không được triển khai cơ chế mà credit chỉ dừng khi user thủ công bấm Stop.
+
+## 20.2 Mandatory cost telemetry trước Phase 1 autonomy
+
+Control Plane MUST attribute tối thiểu các field sau cho từng [DEV-*] task: input tokens, output tokens, total tokens, model-call count, attempt count, review calls, trace level và accepted/rejected outcome.
+
+KPI chính là **average input tokens per accepted DEV task**, kèm breakdown T0/T1/T2. `Cost per accepted DEV task` MUST tính toàn bộ model usage gắn với task accepted, bao gồm failed attempts/reviews trước khi task được accept. Failed/rejected tasks MUST vẫn giữ cost record riêng để không che waste. Chi tiết measurement contract nằm tại [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md).
+
+## 20.3 Graphify ROI gate
+
+Declared Graphify/context treatment MUST đạt ít nhất **70% reduction** của average input tokens per accepted DEV task so với declared chat-heavy baseline cho comparable work. Nếu treatment thay đổi Context Pack, routing hoặc policy đồng thời, kết quả MUST NOT được diễn giải là ROI riêng của Graphify.
 
 # 21. Scrum có cần thiết không?
 
@@ -790,7 +952,8 @@ Một change được xem là ready khi:
 - scope đủ rõ;
 - critical unknowns được ghi nhận;
 - required evidence có hoặc có plan lấy evidence;
-- trace level/risk được phân loại.
+- trace level/risk được phân loại;
+- autonomous execution budget/context strategy được xác định khi AI execution được dùng.
 
 ## 22.2 Design Done
 
@@ -805,7 +968,8 @@ Tùy T1/T2, nhưng critical design SHOULD đạt:
 - migration/rollback defined;
 - observability defined;
 - task decomposition linked;
-- verification gates pass.
+- verification gates pass;
+- material governance change có human accountability và self-modification strategy khi cần.
 
 ## 22.3 Implementation Done
 
@@ -814,7 +978,9 @@ Tùy T1/T2, nhưng critical design SHOULD đạt:
 - traceability intact;
 - contract/schema compatibility checks pass;
 - deployment/rollout evidence captured khi cần;
-- runtime verification hoặc follow-up condition được định nghĩa.
+- runtime verification hoặc follow-up condition được định nghĩa;
+- deterministic CI và reproducible environment checks pass;
+- significant changed files có provenance và required implementation evidence resolve.
 
 # 23. Metrics và Factory evaluation
 
@@ -834,10 +1000,15 @@ Metrics nên tập trung vào value và system health:
 - change failure rate;
 - time-to-detect drift;
 - cost per accepted change;
+- average input tokens per accepted DEV task;
+- total AI tokens per accepted DEV task;
+- agent attempts/model calls per accepted DEV task;
+- input tokens per attempted DEV task;
+- acceptance rate theo T0/T1/T2;
 - debt age/concentration;
 - policy exception age.
 
-Trend quan trọng hơn một “architecture score” tổng hợp mơ hồ.
+Trend quan trọng hơn một “architecture score” tổng hợp mơ hồ. Phase 0 chưa có historical token telemetry đầy đủ cho [DEV-001]–[DEV-005]; missing data MUST được ghi `unknown`, không được suy diễn thành 0. Measurement contract: [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md).
 
 # 24. Agent evaluation harness
 
@@ -852,7 +1023,9 @@ Ví dụ eval cases:
 - preserve backward compatibility;
 - classify trace level đúng;
 - không expose Restricted context cho disallowed runtime;
-- output conform schema.
+- output conform schema;
+- circuit breaker chặn model call thứ ba sau hai failed attempts;
+- context strategy không tăng token cost vượt budget mà không có quality/risk justification.
 
 Khi đổi agent prompt/model/runtime:
 
@@ -868,6 +1041,8 @@ Khi đổi agent prompt/model/runtime:
 
 **Idea/Signal → Frame → Design → Verify → Approve → Implement → Observe → Learn**
 
+Khi implementation dùng autonomous agent, golden path MUST chèn **Budget Check → Attempt 1/2 → Circuit Breaker** trước khi retry thêm.
+
 ## 25.2 Escape hatches
 
 Cần flow có kiểm soát cho:
@@ -879,7 +1054,7 @@ Cần flow có kiểm soát cho:
 - regulatory deadline;
 - tooling-only maintenance.
 
-Escape hatch MUST không xóa traceability; nó có thể **defer** một số artifacts/gates với deadline backfill rõ ràng.
+Escape hatch MUST không xóa traceability; nó có thể **defer** một số artifacts/gates với deadline backfill rõ ràng. Escape hatch MUST NOT vô hiệu `MAX_ATTEMPTS = 2` hoặc mandatory cost telemetry trừ khi một governed decision riêng explicitly thay đổi policy.
 
 # 26. Maturity model
 
@@ -895,71 +1070,56 @@ Escape hatch MUST không xóa traceability; nó có thể **defer** một số a
 
 Không nên nhảy thẳng Level 5/6 trước khi Level 2 traceability và canonicalization ổn định.
 
+**Phase 0 assessment:** Factory đã chứng minh vững Level 2 (**Structured**) và một số vertical control thuộc Level 4 (**Governed**) như executable QG-004, nhưng tổng thể chưa được xếp Level 4 vì orchestrator/permissions/evals/cost telemetry chưa hoàn chỉnh. Maturity được đánh theo weakest required capability, không theo feature cherry-picking.
+
 # 27. Lộ trình triển khai đề xuất
 
-## Phase 0 - 1 đến 2 tuần: Foundation
+## Phase 0 - Foundation — COMPLETE
 
-Mục tiêu: tạo canonical skeleton.
+Phase 0 đã hoàn tất walking skeleton và hardening qua [DEV-001](../../design/tasks/DEV-001.md) đến [DEV-005](../../design/tasks/DEV-005.md).
 
-Deliverables:
+Validated outcomes:
 
-- constitution v0;
-- artifact IDs/status conventions;
+- canonical structured artifacts + IDs/status;
 - traceability policy T0/T1/T2;
-- repo structure;
-- base schemas;
-- AGENTS.md generated/curated;
-- CI skeleton;
-- 5-10 evaluation cases đầu tiên.
+- bidirectional task/evidence/change provenance;
+- generated `AGENTS.md` reproducibility;
+- deterministic CI + human PR gate;
+- executable canonical QG-004 vertical slice;
+- reproducible local/CI validation environment.
 
-Success criteria:
+## Phase 1 - Prove bounded, cost-aware agent execution
 
-- một change nhỏ đi qua end-to-end flow;
-- có bidirectional trace từ task đến requirement/test;
-- không cần spreadsheet/manual registry bên ngoài Git.
+Phase 1 MUST bắt đầu theo thứ tự:
 
-## Phase 1 - 0 đến 3 tháng: Prove the process
+1. **Cost telemetry**: capture per-call/per-DEV usage và accepted outcome;
+2. **Circuit breaker**: runtime-level `MAX_ATTEMPTS = 2`;
+3. **Chat-heavy baseline**: khóa measurement window trước Graphify;
+4. **Graphify/Context Graph experiment**: derived context adapter, ROI gate ≥70%;
+5. **Context Pack + risk/cost routing**;
+6. **Bounded agent automation** với deterministic gates và human accountability.
 
-Dùng:
+Phase 1 SHOULD giữ số logical roles tối thiểu cần thiết. Multi-agent specialization chỉ được thêm khi data chứng minh value.
 
-- VS Code;
-- Codex;
-- Git;
-- structured design files;
-- Graphify;
-- scripts;
-- CI.
+## Phase 2 - Governed agentic flow
 
-Chỉ cần bốn logical agents:
+Bổ sung khi Phase 1 chứng minh process/ROI:
 
-- Orchestrator
-- Designer
-- Reviewer
-- Publisher/Executor
-
-Mục tiêu: tìm ra artifact set tối thiểu và chất lượng traceability thực sự cần thiết.
-
-## Phase 2 - 3 đến 12 tháng: Governed agentic flow
-
-Bổ sung:
-
-- MCP tool layer;
-- explicit Intent Graph;
-- Reality Graph/Graphify integration;
-- Traceability service/tool;
+- MCP tool layer theo capability;
+- explicit Intent/Reality/Evolution query services;
 - impact analysis;
-- specialist Architecture/Security/Data/Reliability Agents;
-- fitness functions;
+- specialist Architecture/Security/Data/Reliability Agents theo demand;
+- additional executable fitness functions;
 - agent eval pipeline;
-- Factory metrics.
+- Factory metrics và cost/quality trend.
 
-## Phase 3 - 1 đến 3 năm: Factory Control Plane
+## Phase 3 - Factory Control Plane
 
-Tách khỏi workstation:
+Tách khỏi workstation khi scale yêu cầu:
 
 - Agent Runtime Interface + adapters;
-- runtime router;
-- policy engine;
+- runtime/capability router;
+- policy/evaluation services;
 - shared graph services;
 - audit/observability;
 - cross-repo evolution graph;
@@ -968,20 +1128,29 @@ Tách khỏi workstation:
 
 # 28. Minimum Viable SDF: phạm vi nên xây trước
 
-Để giữ Lean, MVP không nên xây toàn bộ tầm nhìn.
+Để giữ Lean, MVP không nên xây toàn bộ tầm nhìn. Sau Phase 0, cần phân biệt **Minimum Viable Foundation đã validated** với capability Phase 1 cần experiment.
 
-MVP MUST có:
+## 28.1 Minimum Viable Foundation — VALIDATED
+
+MUST có và Phase 0 đã chứng minh:
 
 1. canonical artifact structure;
-2. IDs + lifecycle/status;
+2. IDs + lifecycle/status tối thiểu;
 3. traceability T1/T2;
-4. Orchestrator/Designer/Reviewer roles trên Codex;
-5. AGENTS.md/project config;
-6. architecture/traceability lint;
-7. Graphify Reality Graph thử nghiệm;
-8. PR/CI gate;
-9. basic eval suite;
-10. publication pipeline Markdown → DOCX/HTML/PDF nếu cần.
+4. generated agent/project guidance;
+5. deterministic architecture/traceability validation;
+6. PR/CI gate + human review boundary;
+7. executable canonical policy vertical slice;
+8. reproducible validation environment.
+
+## 28.2 Phase 1 experiments — CONDITIONAL
+
+- Orchestrator/Designer/Reviewer/Executor roles MAY được bật theo bounded workflow;
+- Graphify Reality/Context Graph MAY được thử nghiệm nhưng MUST qua ROI gate ≥70%;
+- basic agent eval/cost telemetry MUST có trước autonomous operation;
+- publication pipeline Markdown → DOCX/HTML/PDF MAY được thêm khi có consumer rõ.
+
+## 28.3 Chưa nên xây
 
 MVP SHOULD chưa xây:
 
@@ -1011,6 +1180,27 @@ Một SDF v1 được xem là đạt khi có thể chứng minh end-to-end với
 13. Khi tắt Graphify/AI, team vẫn build/test/review được ở degraded manual mode.
 14. Ít nhất một Reviewer Agent chạy được qua runtime adapter/eval boundary mà không thay canonical artifacts.
 
+## 29.1 Phase 0 status against SDF v1 acceptance criteria
+
+`PASS` nghĩa là Phase 0 có direct evidence. `PARTIAL` nghĩa là foundation đã có nhưng criterion rộng hơn evidence hiện tại. `DEFERRED`/`NOT YET PROVEN` không phải Phase 0 failure; chúng giữ scope của SDF v1 target.
+
+| # | SDF v1 criterion | Phase 0 status | Evidence / next gate |
+|---|---|---|---|
+| 1 | Idea/problem có ID | PASS | [PROB-001] / Patient Zero |
+| 2 | Requirement/NFR có acceptance criteria | PASS | [FR-001], [NFR-001] |
+| 3 | Design model và ADR cần thiết | PASS | [CMP-001], [ADR-001] và các ADR Phase 0 |
+| 4 | Design review bắt seeded inconsistency | NOT YET PROVEN | Agent eval harness future work |
+| 5 | Work items trace ngược lên design | PASS | [DEV-001]–[DEV-005], `knowledge/traceability.yaml` |
+| 6 | Developer/Codex thực hiện task qua CLI/IDE | PASS | Phase 0 execution history |
+| 7 | PR diff xác định affected components/requirements | PARTIAL | [DEV-003] chứng minh path/task provenance; semantic affected-component inference chưa đầy đủ |
+| 8 | CI bắt orphan T1/T2 change | PASS | [ADR-003], [DEV-003] |
+| 9 | Tests/evidence đóng trace chain | PASS | [TEST-001]–[TEST-005] |
+| 10 | Reality Graph update sau merge | DEFERRED | Phase 1 Graphify/Reality experiment |
+| 11 | Intentional drift test tạo finding | DEFERRED | Runtime/drift capability future work |
+| 12 | Tất cả derived outputs rebuild từ clean checkout | PARTIAL | `AGENTS.md` + validation environment proven; future graph/publication outputs chưa có |
+| 13 | Tắt Graphify/AI vẫn build/test/review degraded mode | PARTIAL | Phase 0 deterministic validation không phụ thuộc Graphify/AI; full operational DR drill chưa formalized |
+| 14 | Reviewer Agent qua runtime adapter/eval boundary | NOT YET PROVEN | ARI/eval boundary later phase |
+
 # 30. Decision log ban đầu
 
 Các quyết định baseline trước khi triển khai:
@@ -1028,6 +1218,24 @@ Các quyết định baseline trước khi triển khai:
 | SDF-DEC-009 | Human gate cho irreversible/high-risk decisions | accountability |
 | SDF-DEC-010 | Agent/eval/policy đều versioned | reproducibility và safe evolution |
 
+
+## 30.1 Phase 0 realization crosswalk
+
+Foundational `SDF-DEC-*` decisions không bị thay thế bởi Phase 0 ADR. ADR là accepted implementation decisions hiện thực hóa hoặc kiểm chứng từng phần của baseline.
+
+| Foundational decision | Phase 0 realization | Verification/result |
+|---|---|---|
+| SDF-DEC-001 | [ADR-001](../../design/decisions/ADR-001.md), [DEV-001](../../design/tasks/DEV-001.md) | Git + structured artifacts được dùng làm traceable source |
+| SDF-DEC-002 | RETAINED / NOT DIRECTLY REALIZED IN PHASE 0 | Canonical Git/structured artifacts vẫn giữ authority; không có Graphify/Knowledge Graph nào được promote thành canonical truth. Realization tiếp theo thuộc Phase 1 Reality/Context Graph experiment. |
+| SDF-DEC-003 | [ADR-001](../../design/decisions/ADR-001.md), [ADR-002](../../design/decisions/ADR-002.md), [ADR-003](../../design/decisions/ADR-003.md) | Bidirectional/risk-based traceability spine |
+| SDF-DEC-004 | [DEV-001](../../design/tasks/DEV-001.md)–[DEV-005](../../design/tasks/DEV-005.md) | Small-batch governed evolution / PDCA |
+| SDF-DEC-005 | Phase 0 execution | Codex-assisted bootstrap validated; not canonical dependency |
+| SDF-DEC-006 | Phase 0 repository/CI design | Core validation resides in repo scripts/governance, not extension |
+| SDF-DEC-007 | TARGET | MCP/ARI separation retained, not yet fully implemented |
+| SDF-DEC-008 | [ADR-004](../../design/decisions/ADR-004.md) | Governance/evidence remains provider-independent |
+| SDF-DEC-009 | [ADR-003](../../design/decisions/ADR-003.md), [ADR-004](../../design/decisions/ADR-004.md) | Human classification/material governance gate retained |
+| SDF-DEC-010 | [ADR-004](../../design/decisions/ADR-004.md), [ADR-005](../../design/decisions/ADR-005.md) | Versioned policy/schema/environment contract demonstrated |
+
 # 31. Kiến trúc mục tiêu tóm tắt
 
 ```text
@@ -1035,47 +1243,61 @@ Các quyết định baseline trước khi triển khai:
                          Intent
                            │
                            ▼
-                Workflow / Orchestrator
+                 Workflow / Orchestrator
                            │
-               ┌───────────┼───────────┐
-               ▼           ▼           ▼
-           Knowledge     Design      Research
-               │           │
-   Intent / Reality /      │
-    Evolution Graph        │
-               └──────┬────┘
-                      ▼
-                  Integrator
-                      │
-                      ▼
-                    Critics
-                      │
-                      ▼
-                  Human Gate
-                      │
-                      ▼
-             Execution / Dev Tasks
-                      │
-                      ▼
-                  Code / Test
-                      │
-                      ▼
-                   Git / CI
-                      │
-                      ▼
-                   Runtime
-                      │
-                      ▼
-                   Evidence
-                      │
-                      ▼
-               Evolution Agents
-                      │
-                      └───────────────↺
+                    Budget / Circuit
+                           │
+                           ▼
+                    Context Selector
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+      Knowledge          Design          Research
+          │                │
+ Intent / Reality /        │
+  Evolution Graph          │
+          └────────┬───────┘
+                   ▼
+              Risk/Cost Router
+          ┌────────┼─────────────┐
+          ▼        ▼             ▼
+      no/cheap AI bounded AI  strong AI
+          └────────┼─────────────┘
+                   ▼
+               Integrator
+                   │
+                   ▼
+                 Critics
+                   │
+                   ▼
+                Human Gate
+                   │
+                   ▼
+           Execution / Dev Tasks
+                   │
+                   ▼
+               Code / Test
+                   │
+                   ▼
+                Git / CI
+                   │
+                   ▼
+                 Runtime
+                   │
+                   ▼
+                 Evidence
+                   │
+                   ▼
+              Evolution Agents
+                   │
+                   └────────────────↺
 
           CONTROL PLANE ACROSS ALL LAYERS
  Constitution • Policy • Permission • Fitness • Eval • Audit
+ Cost Telemetry • Circuit Breaker • Traceability • Human Approval
 ```
+
+Graphify, nếu được dùng, nằm ở derived Reality/Context layer và không nằm trên canonical authority path.
 
 # 32. Kết luận
 
@@ -1089,18 +1311,20 @@ Các công cụ có thể thay đổi:
 
 - VS Code có thể được thay bằng IDE khác;
 - Codex có thể được thay bằng Agent Runtime khác;
-- Graphify có thể được thay bằng Reality Graph adapter khác;
+- Graphify có thể được thay hoặc loại bỏ nếu không đạt ROI;
 - Scrum có thể dùng hoặc không;
 - model AI có thể đổi theo quality/cost/security.
 
-Nhưng bốn invariants không đổi:
+Các invariants không đổi:
 
 1. canonical truth có version;
 2. material changes có traceability;
 3. derived knowledge có provenance và rebuild được;
-4. human giữ accountability đối với irreversible/high-risk decisions.
+4. human giữ accountability đối với irreversible/high-risk decisions;
+5. deterministic computation được ưu tiên cho điều có thể xác định;
+6. autonomous AI execution có metered cost, hard budget và circuit breaker.
 
-Với baseline này, bước tiếp theo hợp lý không phải xây một platform lớn, mà là **chọn một real software change và dùng nó làm “walking skeleton” để xây SDF Phase 0/1 theo đúng chính process mà Factory sẽ quản lý**.
+Phase 0 đã hoàn tất deterministic foundation qua [DEV-001](../../design/tasks/DEV-001.md) đến [DEV-005](../../design/tasks/DEV-005.md). Bước tiếp theo không phải xây platform lớn: Phase 1 MUST bắt đầu bằng **cost telemetry → runtime circuit breaker → chat-heavy baseline → Graphify/context experiment có ROI gate → bounded automation**.
 
 # Phụ lục A. Artifact ID conventions gợi ý
 
@@ -1191,3 +1415,21 @@ Truy cập ngày 19/09/2026.
 7. Visual Studio Code - AI/agent overview and MCP positioning: https://code.visualstudio.com/
 8. Graphify Labs - Graphify open-source repository: https://github.com/Graphify-Labs/graphify
 
+# Phụ lục E. Phase 0 realization crosswalk
+
+Bảng này chỉ phục vụ navigation. Authority vẫn nằm ở canonical artifacts tương ứng.
+
+| Capability | Intent/decision | Realization | Verification |
+|---|---|---|---|
+| Governed walking skeleton | [ADR-001](../../design/decisions/ADR-001.md) | [DEV-001](../../design/tasks/DEV-001.md) | [TEST-001](../../design/verification/TEST-001.md) |
+| Implementation evidence resolves | [ADR-002](../../design/decisions/ADR-002.md) | [DEV-002](../../design/tasks/DEV-002.md) | [TEST-002](../../design/verification/TEST-002.md) |
+| Reverse changed-file provenance | [ADR-003](../../design/decisions/ADR-003.md) | [DEV-003](../../design/tasks/DEV-003.md) | [TEST-003](../../design/verification/TEST-003.md) |
+| Executable canonical QG-004 | [ADR-004](../../design/decisions/ADR-004.md) | [DEV-004](../../design/tasks/DEV-004.md) | [TEST-004](../../design/verification/TEST-004.md) |
+| Reproducible validation environment | [ADR-005](../../design/decisions/ADR-005.md) | [DEV-005](../../design/tasks/DEV-005.md) | [TEST-005](../../design/verification/TEST-005.md) |
+
+Closure/navigation artifacts:
+
+- [CP-EVOLUTION-LOG](../phase0-evolution-log.md): chronological Phase 0 events;
+- [CP-DECISION-INDEX](../phase0-decision-index.md): decision navigation/crosswalk;
+- [CP-PHASE0-EXIT](../phase0-exit-report.md): phase closure evidence;
+- [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md): cost telemetry, circuit breaker và Graphify ROI measurement contract.
