@@ -16,6 +16,10 @@ gates:
     name: implementation-evidence
     deterministic: true
     blocks_merge: true
+    scope:
+      event: pull_request
+      levels: [T1, T2]
+    policy: implementation_evidence
   - id: QG-005
     name: risk-attestation
     deterministic: true

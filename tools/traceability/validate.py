@@ -18,10 +18,12 @@ from typing import Any
 
 import yaml
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
 
 FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*(?:\n|\Z)", re.DOTALL)
 TASK_RE = re.compile(r"^DEV-[0-9]{3,}$")
-COMMIT_MARKER = lambda task: f"[{task}]"
+QG004_BOOTSTRAP_BASE = "972774f18b879d023eb005d1af021699ed6b4ed5"
+QG004_SCHEMA = "knowledge/schemas/implementation-evidence-gate.schema.json"
 
 SCHEMA_BY_KIND = {
     "problem": "problem.schema.json",
@@ -62,6 +64,73 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def load_yaml(path: Path) -> Any:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+class GovernanceLoader(yaml.SafeLoader):
+    """Reject ambiguous mappings in the canonical documents used by QG-004."""
+
+
+def governance_mapping(loader: GovernanceLoader, node: yaml.MappingNode) -> dict:
+    loader.flatten_mapping(node)
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node)
+        if key in mapping:
+            raise ValueError(f"duplicate governance key {key!r}")
+        mapping[key] = loader.construct_object(value_node)
+    return mapping
+
+
+GovernanceLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, governance_mapping)
+
+
+@dataclass(frozen=True)
+class ImplementationEvidenceGate:
+    levels: tuple[str, ...]
+    require_commit_marker: bool
+    marker_format: str
+    require_changed_path_match: bool
+
+
+def load_implementation_evidence_gate(repo: Path, ref: str | None = None) -> ImplementationEvidenceGate:
+    """Load one supported gate, not a general policy interpreter. No permissive defaults."""
+    try:
+        def read(path: str) -> str:
+            return git(repo, "show", f"{ref}:{path}") if ref else (repo / path).read_text(encoding="utf-8")
+
+        gates_doc = yaml.load(read("constitution/quality-gates.yaml"), Loader=GovernanceLoader)
+        policies_doc = yaml.load(read("constitution/policies.yaml"), Loader=GovernanceLoader)
+        if not isinstance(gates_doc, dict) or type(gates_doc.get("version")) is not int or gates_doc["version"] != 1:
+            raise ValueError("quality-gates.yaml requires version 1")
+        gates = gates_doc.get("gates")
+        if not isinstance(gates, list) or any(not isinstance(g, dict) or not isinstance(g.get("id"), str) for g in gates):
+            raise ValueError("gates must be a list of identified mappings")
+        ids = [g["id"] for g in gates]
+        if len(ids) != len(set(ids)):
+            raise ValueError("duplicate quality gate ID")
+        if ids.count("QG-004") != 1:
+            raise ValueError("mandatory QG-004 declaration is missing")
+        gate = next(g for g in gates if g["id"] == "QG-004")
+        bootstrap = ref is not None and git(repo, "rev-parse", ref).strip() == QG004_BOOTSTRAP_BASE
+        if bootstrap:
+            # The only supported pre-executable shape is this immutable merged baseline.
+            if gate != {"id": "QG-004", "name": "implementation-evidence", "deterministic": True, "blocks_merge": True}:
+                raise ValueError("unexpected QG-004 bootstrap declaration")
+            gate = dict(gate, scope={"event": "pull_request", "levels": ["T1", "T2"]}, policy="implementation_evidence")
+        schema = load_json(repo / QG004_SCHEMA) if bootstrap else json.loads(read(QG004_SCHEMA))
+        Draft202012Validator.check_schema(schema)
+        policy = policies_doc["implementation_evidence"]
+        errors = list(Draft202012Validator(schema).iter_errors({"gate": gate, "policy": policy}))
+        if errors:
+            raise ValueError("; ".join(error.message for error in errors))
+        if policy["commit_marker_format"].count("DEV-n") != 1:
+            raise ValueError("commit_marker_format must contain exactly one DEV-n placeholder")
+        return ImplementationEvidenceGate(
+            tuple(gate["scope"]["levels"]), policy["t1_t2_require_commit_marker"],
+            policy["commit_marker_format"], policy["t1_t2_require_changed_path_match"],
+        )
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, yaml.YAMLError, SchemaError) as exc:
+        raise ValueError(f"QG-004 governance ({ref or 'workspace'}): {exc}") from exc
 
 
 def extract_frontmatter(path: Path) -> dict[str, Any]:
@@ -124,6 +193,11 @@ def implementation_path_resolves(repo: Path, pattern: str) -> bool:
 
 
 def validate_traceability(repo: Path, registry: dict[str, Artifact], result: ValidationErrorSet) -> dict[str, Any]:
+    try:
+        load_implementation_evidence_gate(repo)
+    except ValueError as exc:
+        result.error(str(exc))
+        return {}
     trace_path = repo / "knowledge" / "traceability.yaml"
     trace = load_yaml(trace_path)
     validator = Draft202012Validator(load_json(repo / "knowledge/schemas/traceability.schema.json"))
@@ -288,6 +362,11 @@ def path_matches(changed: list[str], patterns: list[str]) -> bool:
 
 def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_ref: str, head_ref: str, result: ValidationErrorSet) -> None:
     try:
+        # Evaluate both independently: proposed weakening cannot remove base obligations.
+        evidence_gates = tuple(dict.fromkeys((
+            load_implementation_evidence_gate(repo, base_ref),
+            load_implementation_evidence_gate(repo),
+        )))
         messages = commit_messages(repo, base_ref, head_ref)
         files = changed_files(repo, base_ref, head_ref)
         base_policies = yaml.safe_load(git(repo, "show", f"{base_ref}:constitution/policies.yaml"))
@@ -318,11 +397,14 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
         if actual_level in {"T1", "T2"}:
             if not has_risk_attestation(block, actual_level):
                 result.error(f"PR body: {task_id} {actual_level} risk attestation is incomplete")
-            marker = COMMIT_MARKER(task_id)
-            if not any(marker in msg for msg in messages):
+        for gate in evidence_gates:
+            if actual_level not in gate.levels:
+                continue
+            marker = gate.marker_format.replace("DEV-n", task_id)
+            if gate.require_commit_marker and not any(marker in msg for msg in messages):
                 result.error(f"git evidence: no PR commit message contains required marker {marker}")
             patterns = node.get("implementation", {}).get("paths", [])
-            if not path_matches(files, patterns):
+            if gate.require_changed_path_match and not path_matches(files, patterns):
                 result.error(
                     f"git evidence: diff does not touch any declared implementation path for {task_id}; "
                     f"declared={patterns}, changed={files}"
@@ -378,6 +460,7 @@ def main() -> int:
         print(f"FAILED: {len(result.errors)} error(s)", file=sys.stderr)
         return 1
     print(f"PASS: {len(registry)} artifacts; deterministic traceability is valid")
+    print("PASS: QG-004 canonical configuration is valid" + ("; base/proposed PR evidence passed" if body is not None else ""))
     return 0
 
 if __name__ == "__main__":

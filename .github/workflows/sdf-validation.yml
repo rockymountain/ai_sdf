@@ -29,13 +29,13 @@ jobs:
       - name: Verify generated agent instructions
         run: python tools/generate_agents.py --repo . --check
 
-      - name: Static canonical validation
+      - name: Canonical artifacts and QG-004 configuration
         run: python tools/traceability/validate.py --repo .
 
       - name: Unit tests
         run: python -m unittest discover -s tools/traceability/tests -v
 
-      - name: PR trace + Git evidence
+      - name: PR provenance and base/proposed QG-004 evidence
         if: github.event_name == 'pull_request'
         run: >-
           python tools/traceability/validate.py
