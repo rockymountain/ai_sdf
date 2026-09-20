@@ -89,10 +89,10 @@ Các đoạn mô tả **validated state** ghi những gì đã được Phase 0 
 | Nội dung | Authority |
 |---|---|
 | Architecture / operating model / target blueprint | `docs/reference/ai-native-sdf-reference-architecture.md` ([CP-REFERENCE-ARCHITECTURE]) |
-| Chronological Phase 0 history | `docs/phase0-evolution-log.md` ([CP-EVOLUTION-LOG]) |
-| Decision navigation / realization mapping | `docs/phase0-decision-index.md` ([CP-DECISION-INDEX]) |
-| Phase closure evidence | `docs/phase0-exit-report.md` ([CP-PHASE0-EXIT]) |
-| AI cost / telemetry / circuit-breaker measurement contract | `docs/phase0-ai-cost-baseline.md` ([CP-AI-COST-BASELINE]) |
+| Chronological Phase 0 history | `docs/phase0/phase0-evolution-log.md` ([CP-EVOLUTION-LOG]) |
+| Decision navigation / realization mapping | `docs/phase0/phase0-decision-index.md` ([CP-DECISION-INDEX]) |
+| Phase closure evidence | `docs/phase0/phase0-exit-report.md` ([CP-PHASE0-EXIT]) |
+| AI cost / telemetry / circuit-breaker measurement contract | `docs/phase0/phase0-ai-cost-baseline.md` ([CP-AI-COST-BASELINE]) |
 | Actual architectural decisions | `design/decisions/ADR-*` |
 | Executable governance | `constitution/*` |
 | Trace truth | `knowledge/traceability.yaml` |
@@ -373,7 +373,7 @@ Tool-derived, biểu diễn “hệ thống thực tế là gì”:
 
 Graphify phù hợp làm **candidate adapter** của Reality/Context Graph vì nó có thể giúp materialize code/dependency context. Nhưng Graphify MUST NOT trở thành sole canonical authority cho design intent và MUST NOT được promote chỉ vì feature richness.
 
-Graphify/context optimization chỉ được chấp nhận khi experiment chứng minh giảm **ít nhất 70% average input tokens per accepted DEV task** so với declared chat-heavy baseline cho comparable work, đồng thời không làm tăng escaped defect/governance violation. Không đạt threshold này thì integration MUST được remove, redesign hoặc reject như Lean waste. Measurement contract nằm tại [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md).
+Graphify/context optimization chỉ được chấp nhận khi experiment chứng minh giảm **ít nhất 70% average input tokens per accepted DEV task** so với declared chat-heavy baseline cho comparable work, đồng thời không làm tăng escaped defect/governance violation. Không đạt threshold này thì integration MUST được remove, redesign hoặc reject như Lean waste. Measurement contract nằm tại [CP-AI-COST-BASELINE](../phase0/phase0-ai-cost-baseline.md).
 
 ## 7.3 Evolution Graph
 
@@ -703,6 +703,9 @@ software/
 │   ├── architecture-lint/
 │   └── drift/
 ├── graphify-out/        # derived/rebuildable
+├── docs/
+│   ├── phaseX/             # phase-scoped documentation
+│   └── reference/          # cross-phase / long-lived reference
 ├── src/
 └── tests/
 ```
@@ -724,9 +727,15 @@ knowledge/schemas/*
 tools/check_environment.py
 tools/traceability/*
 docs/reference/*
+docs/phase0/*
 ```
 
-`docs/reference/` chứa architecture/reference material; nó MUST NOT thay thế `design/decisions/ADR-*`, `constitution/*` hoặc `knowledge/traceability.yaml` làm canonical authority cho decisions, governance hay trace truth.
+Phase-scoped documentation lives under `docs/phaseX/`. Cross-phase / long-lived
+reference documentation lives under `docs/reference/`. Canonical design,
+governance, code, and trace artifacts retain their existing namespaces.
+`docs/reference/` MUST NOT thay thế `design/decisions/ADR-*`, `constitution/*`
+hoặc `knowledge/traceability.yaml` làm canonical authority cho decisions,
+governance hay trace truth.
 
 # 14. Architecture fitness functions
 
@@ -777,7 +786,7 @@ Incident không kết thúc ở postmortem:
 
 Nếu cùng failure mode lặp lại, Factory phải coi đó là defect của process/control plane, không chỉ defect của team implementation.
 
-Phase 0 realized change history được tóm tắt tại [CP-EVOLUTION-LOG](../phase0-evolution-log.md). Deferred policy work được giữ như debt/follow-up thay vì bị copy thành competing canonical decision.
+Phase 0 realized change history được tóm tắt tại [CP-EVOLUTION-LOG](../phase0/phase0-evolution-log.md). Deferred policy work được giữ như debt/follow-up thay vì bị copy thành competing canonical decision.
 
 # 16. Runtime evidence và design drift
 
@@ -919,7 +928,7 @@ Autonomous runtime MUST enforce `MAX_ATTEMPTS = 2`. Failure thứ hai MUST mở 
 
 Control Plane MUST attribute tối thiểu các field sau cho từng [DEV-*] task: input tokens, output tokens, total tokens, model-call count, attempt count, review calls, trace level và accepted/rejected outcome.
 
-KPI chính là **average input tokens per accepted DEV task**, kèm breakdown T0/T1/T2. `Cost per accepted DEV task` MUST tính toàn bộ model usage gắn với task accepted, bao gồm failed attempts/reviews trước khi task được accept. Failed/rejected tasks MUST vẫn giữ cost record riêng để không che waste. Chi tiết measurement contract nằm tại [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md).
+KPI chính là **average input tokens per accepted DEV task**, kèm breakdown T0/T1/T2. `Cost per accepted DEV task` MUST tính toàn bộ model usage gắn với task accepted, bao gồm failed attempts/reviews trước khi task được accept. Failed/rejected tasks MUST vẫn giữ cost record riêng để không che waste. Chi tiết measurement contract nằm tại [CP-AI-COST-BASELINE](../phase0/phase0-ai-cost-baseline.md).
 
 ## 20.3 Graphify ROI gate
 
@@ -1008,7 +1017,7 @@ Metrics nên tập trung vào value và system health:
 - debt age/concentration;
 - policy exception age.
 
-Trend quan trọng hơn một “architecture score” tổng hợp mơ hồ. Phase 0 chưa có historical token telemetry đầy đủ cho [DEV-001]–[DEV-005]; missing data MUST được ghi `unknown`, không được suy diễn thành 0. Measurement contract: [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md).
+Trend quan trọng hơn một “architecture score” tổng hợp mơ hồ. Phase 0 chưa có historical token telemetry đầy đủ cho [DEV-001]–[DEV-005]; missing data MUST được ghi `unknown`, không được suy diễn thành 0. Measurement contract: [CP-AI-COST-BASELINE](../phase0/phase0-ai-cost-baseline.md).
 
 # 24. Agent evaluation harness
 
@@ -1429,7 +1438,7 @@ Bảng này chỉ phục vụ navigation. Authority vẫn nằm ở canonical ar
 
 Closure/navigation artifacts:
 
-- [CP-EVOLUTION-LOG](../phase0-evolution-log.md): chronological Phase 0 events;
-- [CP-DECISION-INDEX](../phase0-decision-index.md): decision navigation/crosswalk;
-- [CP-PHASE0-EXIT](../phase0-exit-report.md): phase closure evidence;
-- [CP-AI-COST-BASELINE](../phase0-ai-cost-baseline.md): cost telemetry, circuit breaker và Graphify ROI measurement contract.
+- [CP-EVOLUTION-LOG](../phase0/phase0-evolution-log.md): chronological Phase 0 events;
+- [CP-DECISION-INDEX](../phase0/phase0-decision-index.md): decision navigation/crosswalk;
+- [CP-PHASE0-EXIT](../phase0/phase0-exit-report.md): phase closure evidence;
+- [CP-AI-COST-BASELINE](../phase0/phase0-ai-cost-baseline.md): cost telemetry, circuit breaker và Graphify ROI measurement contract.

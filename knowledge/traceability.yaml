@@ -81,7 +81,7 @@ tasks:
         - design/tasks/DEV-004.md
         - design/verification/TEST-004.md
         - examples/DEV-004-pr-body.md
-        - docs/phase0-policy-follow-up.md
+        - docs/phase0/phase0-policy-follow-up.md
     verification:
       - TEST-004
 
@@ -102,7 +102,7 @@ tasks:
         - tools/traceability/tests/test_environment.py
         - tools/traceability/tests/test_validator.py
         - README.md
-        - docs/phase0-policy-follow-up.md
+        - docs/phase0/phase0-policy-follow-up.md
         - knowledge/traceability.yaml
         - design/architecture/CMP-002.md
         - design/requirements/FR-005.md
@@ -112,3 +112,16 @@ tasks:
         - examples/DEV-005-pr-body.md
     verification:
       - TEST-005
+
+  DEV-006:
+    level: T0
+    implementation:
+      paths:
+        - design/tasks/DEV-006.md
+        - knowledge/traceability.yaml
+        - docs/phase0/phase0-ai-cost-baseline.md
+        - docs/phase0/phase0-decision-index.md
+        - docs/phase0/phase0-evolution-log.md
+        - docs/phase0/phase0-exit-report.md
+        - docs/phase0/phase0-policy-follow-up.md
+        - docs/reference/ai-native-sdf-reference-architecture.md

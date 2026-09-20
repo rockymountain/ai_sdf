@@ -18,7 +18,7 @@ Tài liệu này là **index/navigation only**. Nó MUST NOT copy reasoning chi 
 
 Closure Pack artifacts summarize, index, measure hoặc attest evidence. Chúng **MUST NOT** trở thành competing canonical source cho decisions, executable governance hoặc trace truth.
 
-- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md)
+- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md)
 - Accepted decisions: `design/decisions/ADR-*`
 - Executable governance: `constitution/*`
 - Trace truth: `knowledge/traceability.yaml`
@@ -27,15 +27,15 @@ Closure Pack artifacts summarize, index, measure hoặc attest evidence. Chúng 
 
 | Problem / decision need | Accepted decision | Status | Realization | Verification |
 |---|---|---|---|---|
-| Cần một governed vertical slice thực thay vì chỉ schema/docs | [ADR-001](../design/decisions/ADR-001.md) | accepted | [DEV-001](../design/tasks/DEV-001.md) | [TEST-001](../design/verification/TEST-001.md) |
-| `implementation.paths` có thể tồn tại nhưng không resolve tới evidence thực | [ADR-002](../design/decisions/ADR-002.md) | accepted | [DEV-002](../design/tasks/DEV-002.md) | [TEST-002](../design/verification/TEST-002.md) |
-| Changed file có thể không truy được về task/intent | [ADR-003](../design/decisions/ADR-003.md) | accepted | [DEV-003](../design/tasks/DEV-003.md) | [TEST-003](../design/verification/TEST-003.md) |
-| QG-004/policy được khai báo nhưng validator vẫn sở hữu semantics | [ADR-004](../design/decisions/ADR-004.md) | accepted | [DEV-004](../design/tasks/DEV-004.md) | [TEST-004](../design/verification/TEST-004.md) |
-| Local/CI validation environment drift và dependency closure không thống nhất | [ADR-005](../design/decisions/ADR-005.md) | accepted | [DEV-005](../design/tasks/DEV-005.md) | [TEST-005](../design/verification/TEST-005.md) |
+| Cần một governed vertical slice thực thay vì chỉ schema/docs | [ADR-001](../../design/decisions/ADR-001.md) | accepted | [DEV-001](../../design/tasks/DEV-001.md) | [TEST-001](../../design/verification/TEST-001.md) |
+| `implementation.paths` có thể tồn tại nhưng không resolve tới evidence thực | [ADR-002](../../design/decisions/ADR-002.md) | accepted | [DEV-002](../../design/tasks/DEV-002.md) | [TEST-002](../../design/verification/TEST-002.md) |
+| Changed file có thể không truy được về task/intent | [ADR-003](../../design/decisions/ADR-003.md) | accepted | [DEV-003](../../design/tasks/DEV-003.md) | [TEST-003](../../design/verification/TEST-003.md) |
+| QG-004/policy được khai báo nhưng validator vẫn sở hữu semantics | [ADR-004](../../design/decisions/ADR-004.md) | accepted | [DEV-004](../../design/tasks/DEV-004.md) | [TEST-004](../../design/verification/TEST-004.md) |
+| Local/CI validation environment drift và dependency closure không thống nhất | [ADR-005](../../design/decisions/ADR-005.md) | accepted | [DEV-005](../../design/tasks/DEV-005.md) | [TEST-005](../../design/verification/TEST-005.md) |
 
 ## Foundational decision → Phase 0 realization
 
-Các `SDF-DEC-*` nằm trong [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md) là architectural baseline, không phải ADR thay thế.
+Các `SDF-DEC-*` nằm trong [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md) là architectural baseline, không phải ADR thay thế.
 
 | Foundational decision | Phase 0 realization |
 |---|---|
