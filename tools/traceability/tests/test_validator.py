@@ -40,6 +40,23 @@ class ValidatorTests(unittest.TestCase):
         self.assertIn("ADR-001", registry)
         self.assertEqual("decision", registry["ADR-001"].kind)
 
+    def test_autonomous_execution_policy_requires_positive_integer(self):
+        for value in (None, 0, -1, "600", True):
+            with self.subTest(value=value):
+                td, repo = copy_repo(); self.addCleanup(td.cleanup)
+                path = repo / "constitution/policies.yaml"
+                data = yaml.safe_load(path.read_text())
+                if value is None:
+                    data.pop("autonomous_execution", None)
+                else:
+                    data["autonomous_execution"] = {"max_invocation_seconds": value}
+                path.write_text(yaml.safe_dump(data, sort_keys=False))
+                result, _, _ = self.run_static(repo)
+                self.assertTrue(
+                    any("autonomous_execution" in error for error in result.errors),
+                    result.errors,
+                )
+
     def test_frontmatter_is_identity_not_filename(self):
         td, repo = copy_repo(); self.addCleanup(td.cleanup)
         original = repo / "design/decisions/ADR-001.md"

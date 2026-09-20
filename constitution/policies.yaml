@@ -1,4 +1,6 @@
 version: 1
+autonomous_execution:
+  max_invocation_seconds: 600
 traceability:
   levels:
     T0:

@@ -125,3 +125,38 @@ tasks:
         - docs/phase0/phase0-exit-report.md
         - docs/phase0/phase0-policy-follow-up.md
         - docs/reference/ai-native-sdf-reference-architecture.md
+
+  DEV-007:
+    level: T2
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - NFR-002
+    design:
+      - CMP-003
+    decisions:
+      - ADR-006
+    implementation:
+      paths:
+        - .gitignore
+        - constitution/policies.yaml
+        - requirements-dev.txt
+        - knowledge/schemas/autonomous-execution-policy.schema.json
+        - tools/check_environment.py
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_validator.py
+        - src/ai_execution/__init__.py
+        - src/ai_execution/model.py
+        - src/ai_execution/policy.py
+        - src/ai_execution/runtime.py
+        - src/ai_execution/store.py
+        - src/ai_execution/gateway.py
+        - src/ai_execution/codex_adapter.py
+        - tools/ai_execution.py
+        - tools/traceability/tests/test_ai_execution.py
+        - knowledge/traceability.yaml
+        - design/tasks/DEV-007.md
+        - design/verification/TEST-007.md
+    verification:
+      - TEST-007

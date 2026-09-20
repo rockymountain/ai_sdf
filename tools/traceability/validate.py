@@ -24,6 +24,7 @@ FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*(?:\n|\Z)", re.DOTALL)
 TASK_RE = re.compile(r"^DEV-[0-9]{3,}$")
 QG004_BOOTSTRAP_BASE = "972774f18b879d023eb005d1af021699ed6b4ed5"
 QG004_SCHEMA = "knowledge/schemas/implementation-evidence-gate.schema.json"
+AUTONOMOUS_EXECUTION_SCHEMA = "knowledge/schemas/autonomous-execution-policy.schema.json"
 
 SCHEMA_BY_KIND = {
     "problem": "problem.schema.json",
@@ -209,6 +210,17 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
         return trace if isinstance(trace, dict) else {}
 
     policies_doc = load_yaml(repo / "constitution/policies.yaml")
+    try:
+        policy_schema = load_json(repo / AUTONOMOUS_EXECUTION_SCHEMA)
+        Draft202012Validator.check_schema(policy_schema)
+        policy_errors = list(
+            Draft202012Validator(policy_schema).iter_errors(policies_doc.get("autonomous_execution"))
+        )
+        for err in sorted(policy_errors, key=lambda error: list(error.path)):
+            loc = ".".join(map(str, err.path)) or "<root>"
+            result.error(f"constitution/policies.yaml:autonomous_execution.{loc}: {err.message}")
+    except (OSError, TypeError, json.JSONDecodeError, SchemaError) as exc:
+        result.error(f"constitution/policies.yaml: autonomous execution schema unavailable: {exc}")
     try:
         provenance_exclusions(policies_doc)
     except ValueError as exc:
