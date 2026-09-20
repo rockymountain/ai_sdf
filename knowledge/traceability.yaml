@@ -139,6 +139,12 @@ tasks:
       - ADR-006
     implementation:
       paths:
+        - design/problems/PROB-002.md
+        - design/requirements/FR-006.md
+        - design/requirements/FR-007.md
+        - design/requirements/NFR-002.md
+        - design/architecture/CMP-003.md
+        - design/decisions/ADR-006.md
         - .gitignore
         - constitution/policies.yaml
         - requirements-dev.txt
