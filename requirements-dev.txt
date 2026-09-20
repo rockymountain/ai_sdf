@@ -5,3 +5,11 @@ attrs==26.1.0
 jsonschema-specifications==2025.9.1
 referencing==0.37.0
 rpds-py==2026.6.3
+openai-codex==0.155.1
+openai-codex-cli-bin==0.155.1
+pydantic==2.13.5
+pydantic-core==2.46.5
+packaging==26.3
+annotated-types==0.8.0
+typing-extensions==4.16.0
+typing-inspection==0.4.4

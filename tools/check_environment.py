@@ -11,6 +11,10 @@ IMPORTS = {
     "pyyaml": "yaml", "jsonschema": "jsonschema", "attrs": "attrs",
     "jsonschema-specifications": "jsonschema_specifications",
     "referencing": "referencing", "rpds-py": "rpds",
+    "openai-codex": "openai_codex", "openai-codex-cli-bin": "codex_cli_bin",
+    "pydantic": "pydantic", "pydantic-core": "pydantic_core",
+    "packaging": "packaging", "annotated-types": "annotated_types",
+    "typing-extensions": "typing_extensions", "typing-inspection": "typing_inspection",
 }
 
 
