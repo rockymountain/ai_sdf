@@ -18,7 +18,7 @@ Mục đích: **Gate Approval evidence**. Tài liệu ưu tiên Yes/No/Status/Ev
 
 Closure Pack artifacts summarize, index, measure hoặc attest evidence. Chúng **MUST NOT** trở thành competing canonical source cho decisions, executable governance hoặc trace truth.
 
-- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md)
+- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md)
 - Accepted decisions: `design/decisions/ADR-*`
 - Executable governance: `constitution/*`
 - Trace truth: `knowledge/traceability.yaml`
@@ -27,10 +27,10 @@ Closure Pack artifacts summarize, index, measure hoặc attest evidence. Chúng 
 
 | Gate | Status | Evidence |
 |---|---|---|
-| Canonical truth rõ và versioned | PASS | `constitution/*`, `design/*`, `knowledge/traceability.yaml`; architecture summary tại [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md) |
-| Bidirectional traceability | PASS | [ADR-002](../design/decisions/ADR-002.md), [ADR-003](../design/decisions/ADR-003.md), [DEV-002](../design/tasks/DEV-002.md), [DEV-003](../design/tasks/DEV-003.md) |
-| Canonical governance executable | PASS | [ADR-004](../design/decisions/ADR-004.md), [DEV-004](../design/tasks/DEV-004.md), `constitution/quality-gates.yaml` |
-| Validation environment reproducible | PASS | [ADR-005](../design/decisions/ADR-005.md), [DEV-005](../design/tasks/DEV-005.md), `.python-version`, `requirements-dev.txt`, `tools/check_environment.py` |
+| Canonical truth rõ và versioned | PASS | `constitution/*`, `design/*`, `knowledge/traceability.yaml`; architecture summary tại [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md) |
+| Bidirectional traceability | PASS | [ADR-002](../../design/decisions/ADR-002.md), [ADR-003](../../design/decisions/ADR-003.md), [DEV-002](../../design/tasks/DEV-002.md), [DEV-003](../../design/tasks/DEV-003.md) |
+| Canonical governance executable | PASS | [ADR-004](../../design/decisions/ADR-004.md), [DEV-004](../../design/tasks/DEV-004.md), `constitution/quality-gates.yaml` |
+| Validation environment reproducible | PASS | [ADR-005](../../design/decisions/ADR-005.md), [DEV-005](../../design/tasks/DEV-005.md), `.python-version`, `requirements-dev.txt`, `tools/check_environment.py` |
 | Human vs deterministic gate boundary explicit | PASS | [ADR-003], [ADR-004], PR/CI governance + human classification/review |
 | DEV-005 GitHub deterministic-validation | PASS | Actual PR-event validation passed after machine-readable T2 attestation correction; [DEV-005] merged |
 | DEV-005 regression baseline | PASS | 25 canonical artifacts; QG-004 PASS; 57 tests PASS; `AGENTS.md` reproducible |
@@ -41,10 +41,10 @@ Closure Pack artifacts summarize, index, measure hoặc attest evidence. Chúng 
 |---:|---|---|---|
 | 1 | Idea/problem được capture có ID | PASS | `[PROB-001]` |
 | 2 | Requirement/NFR có acceptance criteria | PASS | `[FR-001]`, `[NFR-001]` |
-| 3 | Design model và ADR cần thiết được tạo | PASS | `[CMP-001]`, [ADR-001](../design/decisions/ADR-001.md) |
+| 3 | Design model và ADR cần thiết được tạo | PASS | `[CMP-001]`, [ADR-001](../../design/decisions/ADR-001.md) |
 | 4 | Design review phát hiện seeded inconsistency trong eval | NOT YET PROVEN | Agent eval harness Phase 1+ |
 | 5 | Work items được sinh và trace ngược lên design | PASS | `knowledge/traceability.yaml`, [DEV-001]–[DEV-005] |
-| 6 | Developer/Codex thực hiện task trong VS Code/CLI | PASS | [DEV-005](../design/tasks/DEV-005.md); implementation commit `2a7fa5841f47cfa5ba433d711582f128e43a6b4d`; merged via PR #4 |
+| 6 | Developer/Codex thực hiện task trong VS Code/CLI | PASS | [DEV-005](../../design/tasks/DEV-005.md); implementation commit `2a7fa5841f47cfa5ba433d711582f128e43a6b4d`; merged via PR #4 |
 | 7 | PR diff xác định affected components/requirements | PARTIAL | [DEV-003] path/task provenance PASS; semantic component/requirement inference chưa đầy đủ |
 | 8 | CI bắt orphan T1/T2 change | PASS | [ADR-003], [DEV-003], deterministic validator |
 | 9 | Tests/evidence đóng trace chain | PASS | `[TEST-001]`–`[TEST-005]` |

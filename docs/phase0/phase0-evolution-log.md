@@ -12,13 +12,13 @@ lang: vi-VN
 
 # Phase 0 Evolution Log
 
-Tài liệu trả lời: **điều gì đã xảy ra, theo thứ tự nào, dẫn tới kết quả nào?** Nó MUST NOT thay thế reasoning trong ADR hoặc architecture principles trong [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md).
+Tài liệu trả lời: **điều gì đã xảy ra, theo thứ tự nào, dẫn tới kết quả nào?** Nó MUST NOT thay thế reasoning trong ADR hoặc architecture principles trong [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md).
 
 ## Authority boundary
 
 Closure Pack artifacts summarize, index, measure hoặc attest evidence. Chúng **MUST NOT** trở thành competing canonical source cho decisions, executable governance hoặc trace truth.
 
-- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md)
+- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md)
 - Accepted decisions: `design/decisions/ADR-*`
 - Executable governance: `constitution/*`
 - Trace truth: `knowledge/traceability.yaml`

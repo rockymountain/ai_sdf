@@ -12,13 +12,13 @@ lang: vi-VN
 
 # Phase 0 AI Cost Baseline & Circuit Breaker Contract
 
-Đây là **measurement + runtime safety contract** cho entry vào Phase 1. Architecture/routing authority nằm tại [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md), đặc biệt Sections 9, 20 và 23.
+Đây là **measurement + runtime safety contract** cho entry vào Phase 1. Architecture/routing authority nằm tại [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md), đặc biệt Sections 9, 20 và 23.
 
 ## Authority boundary
 
 Closure Pack artifacts summarize, index, measure hoặc attest evidence. Chúng **MUST NOT** trở thành competing canonical source cho decisions, executable governance hoặc trace truth.
 
-- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](reference/ai-native-sdf-reference-architecture.md)
+- Architecture/operating model authority: [CP-REFERENCE-ARCHITECTURE](../reference/ai-native-sdf-reference-architecture.md)
 - Accepted decisions: `design/decisions/ADR-*`
 - Executable governance: `constitution/*`
 - Trace truth: `knowledge/traceability.yaml`
