@@ -14,7 +14,7 @@ from .model import ControlledAIInvocation, TerminalReason, TerminalStatus, Usage
 from .runtime import CapabilityProfile, RuntimeSnapshot
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFAULT_RELATIVE_PATH = Path(".sdf/runtime/ai-execution.sqlite3")
 
 
@@ -27,7 +27,12 @@ class TelemetryStore:
 
     @classmethod
     def for_repo(cls, repo: Path) -> "TelemetryStore":
-        return cls(Path(repo) / DEFAULT_RELATIVE_PATH)
+        repo = Path(repo).resolve()
+        path = (repo / DEFAULT_RELATIVE_PATH).resolve()
+        runtime_root = (repo / DEFAULT_RELATIVE_PATH.parent).resolve()
+        if path.parent != runtime_root or not path.is_relative_to(repo):
+            raise RuntimeError("governed telemetry path resolves outside the repository")
+        return cls(path)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=5)
@@ -39,9 +44,9 @@ class TelemetryStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as connection, connection:
             version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, SCHEMA_VERSION):
+            if version not in (0, 1, SCHEMA_VERSION):
                 raise RuntimeError(
-                    f"unsupported telemetry schema version {version}; expected {SCHEMA_VERSION}"
+                    f"unsupported telemetry schema version {version}; expected 1 or {SCHEMA_VERSION}"
                 )
             if version == 0:
                 connection.executescript(
@@ -74,7 +79,7 @@ class TelemetryStore:
                         terminal_status TEXT,
                         terminal_reason TEXT,
                         human_attention_required INTEGER NOT NULL DEFAULT 0,
-                        autonomous_follow_on_allowed INTEGER NOT NULL DEFAULT 1,
+                        autonomous_follow_on_allowed INTEGER NOT NULL DEFAULT 0,
                         usage_status TEXT,
                         input_tokens INTEGER,
                         output_tokens INTEGER,
@@ -97,6 +102,29 @@ class TelemetryStore:
                     PRAGMA user_version = 1;
                     """
                 )
+                version = 1
+            if version == 1:
+                connection.executescript(
+                    """
+                    CREATE TABLE dev_outcomes (
+                        dev_task TEXT PRIMARY KEY,
+                        task_accepted INTEGER NOT NULL CHECK (task_accepted IN (0, 1)),
+                        finalized_at TEXT NOT NULL
+                    );
+                    PRAGMA user_version = 2;
+                    """
+                )
+        self._verify_access()
+
+    def _verify_access(self) -> None:
+        """Prove inherited workspace access supports DB read and write transactions."""
+        with closing(self._connect()) as connection:
+            connection.execute("SELECT COUNT(*) FROM invocations").fetchone()
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "UPDATE dev_outcomes SET finalized_at = finalized_at WHERE 0"
+            )
+            connection.rollback()
 
     def record_start(
         self,
@@ -116,8 +144,9 @@ class TelemetryStore:
                     run_id, source_revision, invocation_purpose, capability_profile,
                     watchdog_seconds, model_selection_strategy, routing_policy_version,
                     context_strategy, requested_model, requested_reasoning_effort,
-                    adapter_name, adapter_version, started_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    adapter_name, adapter_version, started_at,
+                    autonomous_follow_on_allowed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     invocation.invocation_id,
@@ -137,6 +166,7 @@ class TelemetryStore:
                     adapter_name,
                     adapter_version,
                     started_at,
+                    0,
                 ),
             )
         return started_at
@@ -235,6 +265,81 @@ class TelemetryStore:
             output.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
             count += 1
         return count
+
+    def finalize_dev_outcome(self, dev_task: str, *, task_accepted: bool) -> str:
+        """Record an immutable final DEV outcome; no row means not finalized."""
+        if not isinstance(dev_task, str) or not dev_task.strip():
+            raise ValueError("dev_task is required")
+        if type(task_accepted) is not bool:
+            raise TypeError("task_accepted must be true or false")
+        finalized_at = _now()
+        with closing(self._connect()) as connection, connection:
+            if connection.execute(
+                "SELECT 1 FROM invocations WHERE dev_task = ? LIMIT 1", (dev_task,)
+            ).fetchone() is None:
+                raise KeyError(f"no invocation evidence for {dev_task}")
+            try:
+                connection.execute(
+                    "INSERT INTO dev_outcomes (dev_task, task_accepted, finalized_at) "
+                    "VALUES (?, ?, ?)",
+                    (dev_task, int(task_accepted), finalized_at),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError(f"outcome already finalized for {dev_task}") from exc
+        return finalized_at
+
+    def dev_aggregate(self, dev_task: str) -> dict[str, Any]:
+        """Rebuild DEV usage and outcome from every retained invocation row."""
+        with closing(self._connect()) as connection, connection:
+            usage = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS invocation_count,
+                    COALESCE(SUM(CASE WHEN usage_status = 'exact' THEN 1 ELSE 0 END), 0)
+                        AS exact_usage_count,
+                    COALESCE(SUM(CASE WHEN usage_status = 'exact' THEN input_tokens ELSE 0 END), 0)
+                        AS input_tokens,
+                    COALESCE(SUM(CASE WHEN usage_status = 'exact' THEN output_tokens ELSE 0 END), 0)
+                        AS output_tokens,
+                    COALESCE(SUM(CASE WHEN usage_status = 'exact' THEN total_tokens ELSE 0 END), 0)
+                        AS total_tokens
+                FROM invocations
+                WHERE dev_task = ?
+                """,
+                (dev_task,),
+            ).fetchone()
+            outcome = connection.execute(
+                "SELECT task_accepted, finalized_at FROM dev_outcomes WHERE dev_task = ?",
+                (dev_task,),
+            ).fetchone()
+        invocation_count = int(usage["invocation_count"])
+        exact_count = int(usage["exact_usage_count"])
+        subtotal = {
+            "input_tokens": int(usage["input_tokens"]),
+            "output_tokens": int(usage["output_tokens"]),
+            "total_tokens": int(usage["total_tokens"]),
+        }
+        complete = invocation_count > 0 and exact_count == invocation_count
+        result: dict[str, Any] = {
+            "dev_task": dev_task,
+            "invocation_count": invocation_count,
+            "exact_usage_count": exact_count,
+            "usage_completeness": "complete" if complete else "incomplete",
+            "known_subtotal": subtotal,
+            "outcome_finalized": outcome is not None,
+        }
+        if complete:
+            result["exact_total"] = dict(subtotal)
+        if outcome is not None:
+            result["task_accepted"] = bool(outcome["task_accepted"])
+            result["outcome_finalized_at"] = outcome["finalized_at"]
+        return result
+
+    def export_dev_aggregate(self, output: TextIO, dev_task: str) -> None:
+        output.write(
+            json.dumps(self.dev_aggregate(dev_task), sort_keys=True, separators=(",", ":"))
+            + "\n"
+        )
 
 
 def _now() -> str:

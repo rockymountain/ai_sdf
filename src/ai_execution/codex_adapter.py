@@ -9,7 +9,13 @@ from typing import Any, Callable
 from openai_codex import ApprovalMode, Codex, Sandbox
 
 from .model import ControlledAIInvocation, TerminalReason, TerminalStatus, UsageEvidence
-from .runtime import CapabilityProfile, EvidenceObserver, RuntimeResult, RuntimeSnapshot
+from .runtime import (
+    CapabilityProfile,
+    EvidenceObserver,
+    RuntimeResult,
+    RuntimeSnapshot,
+    RuntimeStartControl,
+)
 
 
 @dataclass(slots=True)
@@ -40,11 +46,17 @@ class CodexRuntimeAdapter:
         invocation: ControlledAIInvocation,
         input_text: str,
         capability: CapabilityProfile,
+        start_control: RuntimeStartControl,
     ) -> object:
         if capability.repository_mutation or capability.name != "read_only":
             raise ValueError("Codex DEV-007 invocations require the read-only capability profile")
         client = self._codex_factory()
         try:
+            # Codex.close() terminates the pinned SDK's app-server process and
+            # wakes pending request/stream waiters. Register it before any
+            # thread/turn operation that can cross the invocation deadline.
+            start_control.register_abort(client.close)
+            start_control.raise_if_cancelled()
             runtime_version = _runtime_version(client)
             thread = client.thread_start(
                 approval_mode=ApprovalMode.deny_all,
@@ -52,12 +64,14 @@ class CodexRuntimeAdapter:
                 model=invocation.requested_model,
                 sandbox=Sandbox.read_only,
             )
+            start_control.raise_if_cancelled()
             options: dict[str, Any] = {"sandbox": Sandbox.read_only}
             if invocation.requested_model is not None:
                 options["model"] = invocation.requested_model
             if invocation.requested_reasoning_effort is not None:
                 options["effort"] = invocation.requested_reasoning_effort
             turn = thread.turn(input_text, **options)
+            start_control.raise_if_cancelled()
             return _CodexHandle(
                 client=client,
                 turn=turn,

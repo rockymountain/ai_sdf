@@ -57,6 +57,19 @@ class ValidatorTests(unittest.TestCase):
                     result.errors,
                 )
 
+    def test_governed_runtime_telemetry_path_must_be_git_ignored(self):
+        td, repo = copy_repo(); self.addCleanup(td.cleanup)
+        path = repo / ".gitignore"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(".sdf/runtime/\n", ""),
+            encoding="utf-8",
+        )
+        result, _, _ = self.run_static(repo)
+        self.assertTrue(
+            any("governed telemetry path" in error for error in result.errors),
+            result.errors,
+        )
+
     def test_frontmatter_is_identity_not_filename(self):
         td, repo = copy_repo(); self.addCleanup(td.cleanup)
         original = repo / "design/decisions/ADR-001.md"

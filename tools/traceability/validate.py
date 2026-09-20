@@ -211,6 +211,16 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
 
     policies_doc = load_yaml(repo / "constitution/policies.yaml")
     try:
+        gitignore_lines = {
+            line.strip()
+            for line in (repo / ".gitignore").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+        if ".sdf/runtime/" not in gitignore_lines:
+            result.error(".gitignore: governed telemetry path .sdf/runtime/ must be excluded")
+    except OSError as exc:
+        result.error(f".gitignore: unable to verify governed telemetry exclusion: {exc}")
+    try:
         policy_schema = load_json(repo / AUTONOMOUS_EXECUTION_SCHEMA)
         Draft202012Validator.check_schema(policy_schema)
         policy_errors = list(

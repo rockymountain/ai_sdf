@@ -17,7 +17,13 @@ from .model import (
     UsageEvidence,
 )
 from .policy import load_watchdog_policy
-from .runtime import AIRuntimePort, CapabilityProfile, RuntimeResult, RuntimeSnapshot
+from .runtime import (
+    AIRuntimePort,
+    CapabilityProfile,
+    RuntimeResult,
+    RuntimeSnapshot,
+    RuntimeStartControl,
+)
 from .store import TelemetryStore
 
 
@@ -40,15 +46,23 @@ class InvocationOutcome:
 
 
 class _Watchdog:
-    """Arm before runtime start and interrupt the attached handle on expiry."""
+    """Revoke start or interrupt an attached handle when the deadline expires."""
 
-    def __init__(self, seconds: int, interrupt: Callable[[object], None]):
+    def __init__(
+        self,
+        seconds: int,
+        interrupt: Callable[[object], None],
+        start_control: RuntimeStartControl,
+    ):
         self.seconds = seconds
+        self.deadline = monotonic() + seconds
         self._interrupt = interrupt
+        self._start_control = start_control
         self._cancelled = threading.Event()
         self.expired = threading.Event()
-        self._handle_ready = threading.Event()
+        self._lock = threading.Lock()
         self._handle: object | None = None
+        self._handle_interrupted = False
         self.interrupt_error: str | None = None
         self._thread = threading.Thread(target=self._run, name="sdf-invocation-watchdog", daemon=True)
 
@@ -56,24 +70,47 @@ class _Watchdog:
         self._thread.start()
 
     def attach(self, handle: object) -> None:
-        self._handle = handle
-        self._handle_ready.set()
+        with self._lock:
+            self._handle = handle
+            expired = self.expired.is_set()
+        if expired:
+            self._interrupt_handle(handle)
 
     def cancel(self) -> None:
         self._cancelled.set()
+        if threading.current_thread() is not self._thread:
+            self._thread.join()
 
     def _run(self) -> None:
-        if self._cancelled.wait(self.seconds):
+        if self._cancelled.wait(max(0.0, self.deadline - monotonic())):
             return
-        self.expired.set()
-        while not self._cancelled.is_set():
-            if self._handle_ready.wait(0.05):
-                try:
-                    assert self._handle is not None
-                    self._interrupt(self._handle)
-                except Exception as exc:  # interruption failure remains terminal evidence
-                    self.interrupt_error = type(exc).__name__
+        self._expire()
+
+    def expire_if_due(self) -> None:
+        """Close scheduler races before accepting a result at the deadline."""
+        if monotonic() >= self.deadline:
+            self._expire()
+
+    def _expire(self) -> None:
+        with self._lock:
+            if self.expired.is_set():
                 return
+            self.expired.set()
+            handle = self._handle
+        if handle is None:
+            self._start_control.cancel()
+        else:
+            self._interrupt_handle(handle)
+
+    def _interrupt_handle(self, handle: object) -> None:
+        with self._lock:
+            if self._handle_interrupted:
+                return
+            self._handle_interrupted = True
+        try:
+            self._interrupt(handle)
+        except Exception as exc:  # interruption failure remains terminal evidence
+            self.interrupt_error = type(exc).__name__
 
 
 class ControlledInvocationGateway:
@@ -105,12 +142,17 @@ class ControlledInvocationGateway:
         except Exception as exc:
             raise InvocationRejected(f"telemetry start persistence failed: {type(exc).__name__}") from exc
 
-        watchdog = _Watchdog(policy.max_invocation_seconds, self.runtime.interrupt)
+        start_control = RuntimeStartControl()
+        watchdog = _Watchdog(
+            policy.max_invocation_seconds,
+            self.runtime.interrupt,
+            start_control,
+        )
         watchdog.arm()
-        started = monotonic()
         handle: object | None = None
         latest = RuntimeSnapshot(UsageEvidence.unknown())
         latest_lock = threading.Lock()
+        starts: queue.Queue[object | BaseException] = queue.Queue(maxsize=1)
         outcomes: queue.Queue[RuntimeResult | BaseException] = queue.Queue(maxsize=1)
 
         def publish(snapshot: RuntimeSnapshot) -> None:
@@ -119,7 +161,49 @@ class ControlledInvocationGateway:
                 latest = snapshot
 
         try:
-            handle = self.runtime.start(invocation, input_text, capability)
+            def start_runtime() -> None:
+                try:
+                    starts.put(
+                        self.runtime.start(
+                            invocation,
+                            input_text,
+                            capability,
+                            start_control,
+                        )
+                    )
+                except BaseException as exc:
+                    starts.put(exc)
+
+            threading.Thread(
+                target=start_runtime,
+                name=f"sdf-start-{invocation.invocation_id}",
+                daemon=True,
+            ).start()
+            started_value = starts.get()
+            watchdog.expire_if_due()
+            if isinstance(started_value, BaseException):
+                if watchdog.expired.is_set():
+                    return self._finish_timeout(
+                        invocation.invocation_id,
+                        latest,
+                        watchdog,
+                        start_control,
+                        error_reference=type(started_value).__name__,
+                    )
+                self._finish(
+                    invocation.invocation_id,
+                    TerminalStatus.failure,
+                    TerminalReason.runtime_error,
+                    latest,
+                    human_attention=True,
+                    follow_on=False,
+                    error_reference=type(started_value).__name__,
+                )
+                raise InvocationRejected(
+                    f"runtime start failed: {type(started_value).__name__}"
+                ) from started_value
+
+            handle = started_value
             watchdog.attach(handle)
             initial = _identity_snapshot(handle)
             publish(initial)
@@ -129,6 +213,14 @@ class ControlledInvocationGateway:
                 runtime_version=getattr(handle, "runtime_version", None),
                 snapshot=initial,
             )
+
+            if watchdog.expired.is_set():
+                return self._finish_timeout(
+                    invocation.invocation_id,
+                    latest,
+                    watchdog,
+                    start_control,
+                )
 
             def observe() -> None:
                 try:
@@ -141,35 +233,17 @@ class ControlledInvocationGateway:
                 name=f"sdf-observe-{invocation.invocation_id}",
                 daemon=True,
             ).start()
-            remaining = max(0.0, policy.max_invocation_seconds - (monotonic() - started))
-            try:
-                observed = outcomes.get(timeout=remaining + 2.0)
-            except queue.Empty:
-                observed = None
+            observed = outcomes.get()
+            watchdog.expire_if_due()
 
-            if watchdog.expired.is_set() or observed is None:
+            if watchdog.expired.is_set():
                 with latest_lock:
-                    snapshot = latest
-                metadata = dict(snapshot.runtime_native_metadata or {})
-                if watchdog.interrupt_error:
-                    metadata["watchdog_interrupt_error"] = watchdog.interrupt_error
-                snapshot = RuntimeSnapshot(
-                    usage=snapshot.usage,
-                    cumulative_usage=snapshot.cumulative_usage,
-                    runtime_session_id=snapshot.runtime_session_id,
-                    runtime_invocation_id=snapshot.runtime_invocation_id,
-                    observed_model=snapshot.observed_model,
-                    runtime_native_metadata=metadata or None,
-                    tool_item_count=snapshot.tool_item_count,
-                )
-                return self._finish(
-                    invocation.invocation_id,
-                    TerminalStatus.timeout,
-                    TerminalReason.watchdog_timeout,
-                    snapshot,
-                    human_attention=True,
-                    follow_on=False,
-                )
+                    return self._finish_timeout(
+                        invocation.invocation_id,
+                        latest,
+                        watchdog,
+                        start_control,
+                    )
 
             if isinstance(observed, BaseException):
                 with latest_lock:
@@ -215,6 +289,39 @@ class ControlledInvocationGateway:
                 close = getattr(handle, "close", None)
                 if callable(close):
                     close()
+
+    def _finish_timeout(
+        self,
+        invocation_id: str,
+        snapshot: RuntimeSnapshot,
+        watchdog: _Watchdog,
+        start_control: RuntimeStartControl,
+        *,
+        error_reference: str | None = None,
+    ) -> InvocationOutcome:
+        metadata = dict(snapshot.runtime_native_metadata or {})
+        if watchdog.interrupt_error:
+            metadata["watchdog_interrupt_error"] = watchdog.interrupt_error
+        if start_control.abort_error:
+            metadata["runtime_start_abort_error"] = start_control.abort_error
+        timed_out = RuntimeSnapshot(
+            usage=snapshot.usage,
+            cumulative_usage=snapshot.cumulative_usage,
+            runtime_session_id=snapshot.runtime_session_id,
+            runtime_invocation_id=snapshot.runtime_invocation_id,
+            observed_model=snapshot.observed_model,
+            runtime_native_metadata=metadata or None,
+            tool_item_count=snapshot.tool_item_count,
+        )
+        return self._finish(
+            invocation_id,
+            TerminalStatus.timeout,
+            TerminalReason.watchdog_timeout,
+            timed_out,
+            human_attention=True,
+            follow_on=False,
+            error_reference=error_reference,
+        )
 
     def _finish(
         self,

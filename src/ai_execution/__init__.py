@@ -12,7 +12,14 @@ from .model import (
     UsageStatus,
 )
 from .policy import WatchdogPolicy, load_watchdog_policy
-from .runtime import AIRuntimePort, CapabilityProfile, RuntimeResult, RuntimeSnapshot
+from .runtime import (
+    AIRuntimePort,
+    CapabilityProfile,
+    RuntimeResult,
+    RuntimeSnapshot,
+    RuntimeStartCancelled,
+    RuntimeStartControl,
+)
 from .store import TelemetryStore
 
 __all__ = [
@@ -27,6 +34,8 @@ __all__ = [
     "ModelSelectionStrategy",
     "RuntimeResult",
     "RuntimeSnapshot",
+    "RuntimeStartCancelled",
+    "RuntimeStartControl",
     "TelemetryStore",
     "TerminalReason",
     "TerminalStatus",

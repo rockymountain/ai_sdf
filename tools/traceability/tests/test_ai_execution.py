@@ -8,6 +8,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from time import monotonic, sleep
 from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -26,8 +27,14 @@ from ai_execution.model import (
     UsageStatus,
 )
 from ai_execution.policy import load_watchdog_policy
-from ai_execution.runtime import CapabilityProfile, RuntimeResult, RuntimeSnapshot
-from ai_execution.store import TelemetryStore
+from ai_execution.runtime import (
+    CapabilityProfile,
+    RuntimeResult,
+    RuntimeSnapshot,
+    RuntimeStartCancelled,
+    RuntimeStartControl,
+)
+from ai_execution.store import SCHEMA_VERSION, TelemetryStore
 
 
 def invocation(**changes) -> ControlledAIInvocation:
@@ -68,9 +75,10 @@ class FakeRuntime:
             ),
         )
 
-    def start(self, controlled, input_text, capability):
+    def start(self, controlled, input_text, capability, start_control):
         self.starts += 1
         self.capability = capability
+        start_control.raise_if_cancelled()
         return SimpleNamespace(
             runtime_session_id=self.result.snapshot.runtime_session_id,
             runtime_invocation_id=self.result.snapshot.runtime_invocation_id,
@@ -106,6 +114,28 @@ class EvidenceBlockingRuntime(FakeRuntime):
             TerminalReason.other,
             RuntimeSnapshot(UsageEvidence.exact(5, 2, 7)),
         )
+
+
+class StartBlockingRuntime(FakeRuntime):
+    def __init__(self):
+        super().__init__()
+        self.active = threading.Event()
+        self.continued_after_deadline = False
+
+    def start(self, controlled, input_text, capability, start_control):
+        self.active.set()
+        deadline = monotonic() + 1.0
+        start_control.register_abort(self.active.clear)
+        while self.active.is_set() and monotonic() < deadline + 0.2:
+            sleep(0.01)
+        self.continued_after_deadline = monotonic() > deadline and self.active.is_set()
+        if start_control.cancelled:
+            raise RuntimeStartCancelled("test start cancelled")
+        return super().start(controlled, input_text, capability, start_control)
+
+    def interrupt(self, handle):
+        self.active.clear()
+        super().interrupt(handle)
 
 
 class BrokenStore:
@@ -191,6 +221,19 @@ class AIExecutionTests(unittest.TestCase):
         self.assertEqual(UsageStatus.exact, outcome.usage.usage_status)
         self.assertEqual(7, outcome.usage.total_tokens)
 
+    def test_watchdog_bounds_blocking_runtime_start(self):
+        self.write_policy(1)
+        runtime = StartBlockingRuntime()
+        outcome = ControlledInvocationGateway(self.repo, self.store(), runtime).invoke(
+            invocation(), "read only"
+        )
+        self.assertEqual(TerminalStatus.timeout, outcome.terminal_status)
+        self.assertFalse(
+            runtime.continued_after_deadline,
+            "spend-capable start work continued beyond the watchdog deadline",
+        )
+        self.assertFalse(runtime.active.is_set())
+
     def test_exact_core_and_optional_breakdown_semantics(self):
         exact = UsageEvidence.exact(4, 2, 6)
         self.assertEqual(UsageStatus.exact, exact.usage_status)
@@ -264,6 +307,106 @@ class AIExecutionTests(unittest.TestCase):
         self.assertEqual(first.getvalue(), second.getvalue())
         self.assertEqual("invocation-1", json.loads(first.getvalue())["invocation_id"])
 
+    def test_complete_dev_aggregate_and_export_are_reproducible(self):
+        store = self.store()
+        gateway = ControlledInvocationGateway(self.repo, store, FakeRuntime())
+        gateway.invoke(invocation(invocation_id="invocation-1"), "read only")
+        gateway.invoke(invocation(invocation_id="invocation-2"), "read only")
+        aggregate = store.dev_aggregate("DEV-007")
+        self.assertEqual("complete", aggregate["usage_completeness"])
+        self.assertEqual(2, aggregate["invocation_count"])
+        self.assertEqual(
+            {"input_tokens": 6, "output_tokens": 4, "total_tokens": 10},
+            aggregate["known_subtotal"],
+        )
+        self.assertEqual(aggregate["known_subtotal"], aggregate["exact_total"])
+        first, second = io.StringIO(), io.StringIO()
+        store.export_dev_aggregate(first, "DEV-007")
+        store.export_dev_aggregate(second, "DEV-007")
+        self.assertEqual(first.getvalue(), second.getvalue())
+
+    def test_unknown_invocation_makes_aggregate_incomplete_without_fabricated_total(self):
+        store = self.store()
+        ControlledInvocationGateway(self.repo, store, FakeRuntime()).invoke(
+            invocation(invocation_id="exact"), "read only"
+        )
+        unknown = RuntimeResult(
+            TerminalStatus.success,
+            None,
+            RuntimeSnapshot(UsageEvidence.unknown()),
+        )
+        ControlledInvocationGateway(self.repo, store, FakeRuntime(unknown)).invoke(
+            invocation(invocation_id="unknown"), "read only"
+        )
+        aggregate = store.dev_aggregate("DEV-007")
+        self.assertEqual("incomplete", aggregate["usage_completeness"])
+        self.assertEqual(2, aggregate["invocation_count"])
+        self.assertEqual(1, aggregate["exact_usage_count"])
+        self.assertEqual(
+            {"input_tokens": 3, "output_tokens": 2, "total_tokens": 5},
+            aggregate["known_subtotal"],
+        )
+        self.assertNotIn("exact_total", aggregate)
+
+    def test_dev_outcome_is_absent_before_finalization(self):
+        store = self.store()
+        ControlledInvocationGateway(self.repo, store, FakeRuntime()).invoke(
+            invocation(), "read only"
+        )
+        aggregate = store.dev_aggregate("DEV-007")
+        self.assertFalse(aggregate["outcome_finalized"])
+        self.assertNotIn("task_accepted", aggregate)
+
+    def test_dev_outcome_finalizes_as_accepted(self):
+        store = self.store()
+        ControlledInvocationGateway(self.repo, store, FakeRuntime()).invoke(
+            invocation(), "read only"
+        )
+        store.finalize_dev_outcome("DEV-007", task_accepted=True)
+        aggregate = store.dev_aggregate("DEV-007")
+        self.assertTrue(aggregate["outcome_finalized"])
+        self.assertIs(True, aggregate["task_accepted"])
+        with self.assertRaisesRegex(ValueError, "already finalized"):
+            store.finalize_dev_outcome("DEV-007", task_accepted=False)
+
+    def test_dev_outcome_finalizes_as_rejected(self):
+        store = self.store()
+        ControlledInvocationGateway(self.repo, store, FakeRuntime()).invoke(
+            invocation(), "read only"
+        )
+        store.finalize_dev_outcome("DEV-007", task_accepted=False)
+        aggregate = store.dev_aggregate("DEV-007")
+        self.assertTrue(aggregate["outcome_finalized"])
+        self.assertIs(False, aggregate["task_accepted"])
+
+    def test_schema_one_store_upgrades_without_losing_invocations(self):
+        import sqlite3
+
+        path = self.temp / "version-one.sqlite3"
+        store = TelemetryStore(path)
+        ControlledInvocationGateway(self.repo, store, FakeRuntime()).invoke(
+            invocation(), "read only"
+        )
+        connection = sqlite3.connect(path)
+        connection.execute("DROP TABLE dev_outcomes")
+        connection.execute("PRAGMA user_version = 1")
+        connection.commit()
+        connection.close()
+        upgraded = TelemetryStore(path)
+        self.assertEqual("DEV-007", upgraded.fetch("invocation-1")["dev_task"])
+        connection = sqlite3.connect(path)
+        self.assertEqual(SCHEMA_VERSION, connection.execute("PRAGMA user_version").fetchone()[0])
+        connection.close()
+
+    def test_governed_store_location_and_explicit_override(self):
+        governed = TelemetryStore.for_repo(self.repo)
+        self.assertEqual(
+            (self.repo / ".sdf/runtime/ai-execution.sqlite3").resolve(),
+            governed.path,
+        )
+        overridden = TelemetryStore(self.temp / "explicit.sqlite3")
+        self.assertEqual(self.temp / "explicit.sqlite3", overridden.path)
+
     def test_unsupported_store_schema_version_fails_closed(self):
         import sqlite3
 
@@ -316,12 +459,48 @@ class AIExecutionTests(unittest.TestCase):
                 calls["closed"] = True
 
         adapter = CodexRuntimeAdapter(repo=str(self.repo), codex_factory=FakeCodex)
-        handle = adapter.start(invocation(), "read only", CapabilityProfile.read_only())
+        handle = adapter.start(
+            invocation(),
+            "read only",
+            CapabilityProfile.read_only(),
+            RuntimeStartControl(),
+        )
         self.assertEqual("read-only", calls["thread"]["sandbox"].value)
         self.assertEqual("thread-native", handle.runtime_session_id)
         self.assertEqual("turn-native", handle.runtime_invocation_id)
         self.assertEqual("runtime-1", handle.runtime_version)
         handle.close()
+
+    def test_codex_blocking_turn_start_is_closed_before_timeout_is_reported(self):
+        self.write_policy(1)
+        active = threading.Event()
+        closed = threading.Event()
+
+        class FakeThread:
+            id = "thread-native"
+
+            def turn(self, *args, **kwargs):
+                active.set()
+                closed.wait(3)
+                active.clear()
+                raise RuntimeError("transport closed")
+
+        class FakeCodex:
+            metadata = SimpleNamespace(serverInfo=SimpleNamespace(version="runtime-1"))
+
+            def thread_start(self, **kwargs):
+                return FakeThread()
+
+            def close(self):
+                closed.set()
+
+        adapter = CodexRuntimeAdapter(repo=str(self.repo), codex_factory=FakeCodex)
+        outcome = ControlledInvocationGateway(self.repo, self.store(), adapter).invoke(
+            invocation(), "read only"
+        )
+        self.assertEqual(TerminalStatus.timeout, outcome.terminal_status)
+        self.assertTrue(closed.is_set())
+        self.assertFalse(active.is_set())
 
     def test_codex_observe_stream_maps_usage_terminal_and_tool_evidence(self):
         breakdown = SimpleNamespace(

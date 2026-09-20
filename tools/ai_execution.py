@@ -27,6 +27,11 @@ from ai_execution.model import (  # noqa: E402
 from ai_execution.store import TelemetryStore  # noqa: E402
 
 
+def store_for(args: argparse.Namespace) -> TelemetryStore:
+    """Use governed repository storage unless the CLI explicitly overrides it."""
+    return TelemetryStore(args.database) if args.database else TelemetryStore.for_repo(args.repo)
+
+
 def git(repo: Path, *args: str, binary: bool = False) -> bytes | str:
     result = subprocess.run(
         ["git", *args], cwd=repo, capture_output=True, check=True, text=not binary
@@ -78,15 +83,27 @@ def workspace_snapshot(repo: Path) -> dict[str, object]:
 
 
 def export(args: argparse.Namespace) -> int:
-    store = TelemetryStore(args.database or (args.repo / ".sdf/runtime/ai-execution.sqlite3"))
+    store = store_for(args)
     store.export_jsonl(sys.stdout, dev_task=args.dev_task)
+    return 0
+
+
+def aggregate(args: argparse.Namespace) -> int:
+    store_for(args).export_dev_aggregate(sys.stdout, args.dev_task)
+    return 0
+
+
+def finalize_outcome(args: argparse.Namespace) -> int:
+    store = store_for(args)
+    store.finalize_dev_outcome(args.dev_task, task_accepted=args.task_accepted)
+    store.export_dev_aggregate(sys.stdout, args.dev_task)
     return 0
 
 
 def live_proof(args: argparse.Namespace) -> int:
     repo = args.repo.resolve()
     pre = workspace_snapshot(repo)
-    store = TelemetryStore(args.database or (repo / ".sdf/runtime/ai-execution.sqlite3"))
+    store = store_for(args)
     invocation_id = str(uuid.uuid4())
     invocation = ControlledAIInvocation(
         dev_task="DEV-007",
@@ -148,6 +165,21 @@ def parser() -> argparse.ArgumentParser:
     export_parser.add_argument("--database", type=Path)
     export_parser.add_argument("--dev-task")
     export_parser.set_defaults(function=export)
+
+    aggregate_parser = subparsers.add_parser("aggregate")
+    aggregate_parser.add_argument("--repo", type=Path, default=ROOT)
+    aggregate_parser.add_argument("--database", type=Path)
+    aggregate_parser.add_argument("--dev-task", required=True)
+    aggregate_parser.set_defaults(function=aggregate)
+
+    outcome_parser = subparsers.add_parser("finalize-outcome")
+    outcome_parser.add_argument("--repo", type=Path, default=ROOT)
+    outcome_parser.add_argument("--database", type=Path)
+    outcome_parser.add_argument("--dev-task", required=True)
+    outcome = outcome_parser.add_mutually_exclusive_group(required=True)
+    outcome.add_argument("--accepted", dest="task_accepted", action="store_true")
+    outcome.add_argument("--rejected", dest="task_accepted", action="store_false")
+    outcome_parser.set_defaults(function=finalize_outcome)
 
     live_parser = subparsers.add_parser("live-proof")
     live_parser.add_argument("--repo", type=Path, default=ROOT)
