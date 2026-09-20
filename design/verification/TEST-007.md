@@ -100,3 +100,10 @@ The prior live evidence remains applicable because the Codex thread/turn/stream,
 read-only capability, telemetry mapping, and workspace path are materially
 unchanged; the added control wraps and can abort start without changing the
 successful adapter path. `live_recertification_required = false`.
+
+A final deterministic semantic correction prevents a successful DEV-007 invocation
+from granting autonomous follow-on execution. Successful acceptance validation now
+retains `human_attention_required=false` while returning and persisting
+`autonomous_follow_on_allowed=false`; deterministic coverage also confirms that
+failure and timeout outcomes continue to persist the same follow-on prohibition.
+No live invocation was rerun, and `live_recertification_required = false`.

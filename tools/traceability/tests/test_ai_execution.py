@@ -209,6 +209,7 @@ class AIExecutionTests(unittest.TestCase):
         self.assertEqual(UsageStatus.unknown, outcome.usage.usage_status)
         self.assertTrue(outcome.human_attention_required)
         self.assertFalse(outcome.autonomous_follow_on_allowed)
+        self.assertEqual(0, row["autonomous_follow_on_allowed"])
         self.assertNotIn("attempt_number", row)
         self.assertNotIn("reservation_id", row)
 
@@ -248,11 +249,14 @@ class AIExecutionTests(unittest.TestCase):
             TerminalReason.runtime_error,
             RuntimeSnapshot(UsageEvidence.exact(8, 3, 11)),
         )
-        outcome = ControlledInvocationGateway(self.repo, self.store(), FakeRuntime(result)).invoke(
+        store = self.store()
+        outcome = ControlledInvocationGateway(self.repo, store, FakeRuntime(result)).invoke(
             invocation(), "read only"
         )
         self.assertEqual(TerminalStatus.failure, outcome.terminal_status)
         self.assertEqual(UsageStatus.exact, outcome.usage.usage_status)
+        self.assertFalse(outcome.autonomous_follow_on_allowed)
+        self.assertEqual(0, store.fetch("invocation-1")["autonomous_follow_on_allowed"])
 
     def test_optional_runtime_ids_are_not_invented(self):
         result = RuntimeResult(
@@ -278,9 +282,15 @@ class AIExecutionTests(unittest.TestCase):
     def test_purpose_is_persisted_and_non_attempt_purpose_is_read_only(self):
         runtime = FakeRuntime()
         store = self.store()
-        ControlledInvocationGateway(self.repo, store, runtime).invoke(invocation(), "read only")
-        self.assertEqual("acceptance_validation", store.fetch("invocation-1")["invocation_purpose"])
+        outcome = ControlledInvocationGateway(self.repo, store, runtime).invoke(
+            invocation(), "read only"
+        )
+        row = store.fetch("invocation-1")
+        self.assertEqual("acceptance_validation", row["invocation_purpose"])
         self.assertEqual(CapabilityProfile.read_only(), runtime.capability)
+        self.assertFalse(outcome.human_attention_required)
+        self.assertFalse(outcome.autonomous_follow_on_allowed)
+        self.assertEqual(0, row["autonomous_follow_on_allowed"])
 
     def test_attempt_purposes_are_not_enabled_in_dev_007(self):
         for purpose in (InvocationPurpose.implementation, InvocationPurpose.continuation):

@@ -266,7 +266,7 @@ class ControlledInvocationGateway:
                 observed.terminal_reason,
                 observed.snapshot,
                 human_attention=attention,
-                follow_on=not attention,
+                follow_on=False,
             )
         except InvocationRejected:
             raise
