@@ -5,7 +5,7 @@ title: AI-Native Software Design Factory Delivery Roadmap
 status: active
 version: 2
 owner: factory-maintainer
-last_updated: 2026-09-21
+last_updated: 2026-09-22
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -173,13 +173,16 @@ Không dùng percentage-complete giả precision cho milestone.
 
 ---
 
-# 5. Current project baseline
+# 5. Current project position
 
-Current merged baseline:
+Current repository revision is derived from Git at verification/use time:
 
 ```text
-main:
-  63fc3f2de53631dc1d6e32f3e1600a3cd9623afc
+branch:
+  main
+
+revision:
+  git rev-parse HEAD
 ```
 
 Current project position:
