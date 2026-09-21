@@ -8,13 +8,15 @@ from typing import Any, Callable
 
 from openai_codex import ApprovalMode, Codex, Sandbox
 
-from .model import ControlledAIInvocation, TerminalReason, TerminalStatus, UsageEvidence
+from .model import ControlledAIInvocation, InvocationPurpose, TerminalReason, TerminalStatus, UsageEvidence
 from .runtime import (
     CapabilityProfile,
     EvidenceObserver,
     RuntimeResult,
     RuntimeSnapshot,
     RuntimeStartControl,
+    StartDisposition,
+    StartEvidence,
 )
 
 
@@ -48,10 +50,24 @@ class CodexRuntimeAdapter:
         capability: CapabilityProfile,
         start_control: RuntimeStartControl,
     ) -> object:
-        if capability.repository_mutation or capability.name != "read_only":
-            raise ValueError("Codex DEV-007 invocations require the read-only capability profile")
-        client = self._codex_factory()
+        if capability.repository_mutation:
+            if capability != CapabilityProfile.implementation() or not (
+                (invocation.invocation_purpose is InvocationPurpose.implementation
+                 and invocation.reservation_id and invocation.candidate_attempt_number)
+                or (invocation.invocation_purpose is InvocationPurpose.continuation
+                    and invocation.attempt_number and invocation.resume_of_invocation_id
+                    and invocation.human_authorization)
+            ):
+                raise ValueError("implementation capability requires governed attempt identity")
+            sandbox = Sandbox.workspace_write
+        elif capability == CapabilityProfile.read_only():
+            sandbox = Sandbox.read_only
+        else:
+            raise ValueError("unsupported capability profile")
+        client = None
+        turn_requested = False
         try:
+            client = self._codex_factory()
             # Codex.close() terminates the pinned SDK's app-server process and
             # wakes pending request/stream waiters. Register it before any
             # thread/turn operation that can cross the invocation deadline.
@@ -62,15 +78,19 @@ class CodexRuntimeAdapter:
                 approval_mode=ApprovalMode.deny_all,
                 cwd=self.repo,
                 model=invocation.requested_model,
-                sandbox=Sandbox.read_only,
+                sandbox=sandbox,
             )
             start_control.raise_if_cancelled()
-            options: dict[str, Any] = {"sandbox": Sandbox.read_only}
+            options: dict[str, Any] = {"sandbox": sandbox}
             if invocation.requested_model is not None:
                 options["model"] = invocation.requested_model
             if invocation.requested_reasoning_effort is not None:
                 options["effort"] = invocation.requested_reasoning_effort
+            turn_requested = True
             turn = thread.turn(input_text, **options)
+            start_control.report_start(StartEvidence(
+                StartDisposition.accepted, "Codex thread.turn returned an accepted turn handle"
+            ))
             start_control.raise_if_cancelled()
             return _CodexHandle(
                 client=client,
@@ -80,7 +100,12 @@ class CodexRuntimeAdapter:
                 runtime_version=runtime_version,
             )
         except Exception:
-            client.close()
+            if client is not None:
+                client.close()
+            if not turn_requested:
+                start_control.report_start(StartEvidence(
+                    StartDisposition.not_started, "local failure before Codex thread.turn request"
+                ))
             raise
 
     def observe(self, handle: object, publish: EvidenceObserver) -> RuntimeResult:

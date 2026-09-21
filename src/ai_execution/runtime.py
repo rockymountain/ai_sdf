@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any, Callable, Protocol
 
 from .model import ControlledAIInvocation, TerminalReason, TerminalStatus, UsageEvidence
@@ -17,6 +18,28 @@ class CapabilityProfile:
     @classmethod
     def read_only(cls) -> "CapabilityProfile":
         return cls("read_only", False)
+
+    @classmethod
+    def implementation(cls) -> "CapabilityProfile":
+        return cls("implementation", True)
+
+
+class StartDisposition(StrEnum):
+    accepted = "accepted"
+    not_started = "not_started"
+    uncertain = "uncertain"
+
+
+@dataclass(frozen=True, slots=True)
+class StartEvidence:
+    disposition: StartDisposition
+    reference: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.disposition, StartDisposition):
+            raise ValueError("start disposition must be provider-neutral")
+        if not isinstance(self.reference, str) or not self.reference.strip():
+            raise ValueError("start evidence reference is required")
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,13 +70,26 @@ class RuntimeStartCancelled(RuntimeError):
 class RuntimeStartControl:
     """Per-invocation cooperative abort control for spend-capable start work."""
 
-    def __init__(self) -> None:
+    def __init__(self, evidence_observer: Callable[[StartEvidence], None] | None = None) -> None:
         self._cancelled = threading.Event()
         self._abort_completed = threading.Event()
         self._lock = threading.Lock()
         self._abort: Callable[[], None] | None = None
         self._abort_started = False
         self.abort_error: str | None = None
+        self._evidence_observer = evidence_observer
+
+    def report_start(self, evidence: StartEvidence) -> None:
+        """Report affirmative acceptance/non-start, or explicit uncertainty.
+
+        Adapters report acceptance immediately after the runtime accepts work,
+        including when returning a handle or subsequent observation later fails.
+        Returning a handle or raising an arbitrary exception alone proves neither.
+        """
+        if not isinstance(evidence, StartEvidence):
+            raise TypeError("StartEvidence required")
+        if self._evidence_observer is not None:
+            self._evidence_observer(evidence)
 
     @property
     def cancelled(self) -> bool:

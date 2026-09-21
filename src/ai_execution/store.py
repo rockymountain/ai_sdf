@@ -12,9 +12,10 @@ from typing import Any, Iterable, TextIO
 
 from .model import ControlledAIInvocation, TerminalReason, TerminalStatus, UsageEvidence
 from .runtime import CapabilityProfile, RuntimeSnapshot
+from .execution import SCHEMA, ExecutionRejected, apply_start_evidence, apply_terminal, authorize_start
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DEFAULT_RELATIVE_PATH = Path(".sdf/runtime/ai-execution.sqlite3")
 
 
@@ -43,13 +44,14 @@ class TelemetryStore:
     def _initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
             version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1, SCHEMA_VERSION):
+            if version not in (0, 1, 2, SCHEMA_VERSION):
                 raise RuntimeError(
-                    f"unsupported telemetry schema version {version}; expected 1 or {SCHEMA_VERSION}"
+                    f"unsupported telemetry schema version {version}; expected 1, 2 or {SCHEMA_VERSION}"
                 )
             if version == 0:
-                connection.executescript(
+                _schema_statements(connection,
                     """
                     CREATE TABLE invocations (
                         invocation_id TEXT PRIMARY KEY,
@@ -104,7 +106,7 @@ class TelemetryStore:
                 )
                 version = 1
             if version == 1:
-                connection.executescript(
+                _schema_statements(connection,
                     """
                     CREATE TABLE dev_outcomes (
                         dev_task TEXT PRIMARY KEY,
@@ -114,6 +116,10 @@ class TelemetryStore:
                     PRAGMA user_version = 2;
                     """
                 )
+                version = 2
+            if version == 2:
+                _schema_statements(connection, SCHEMA)
+                connection.execute("PRAGMA user_version = 3")
         self._verify_access()
 
     def _verify_access(self) -> None:
@@ -134,9 +140,11 @@ class TelemetryStore:
         *,
         adapter_name: str,
         adapter_version: str,
+        max_attempts: int,
     ) -> str:
         started_at = _now()
         with closing(self._connect()) as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """
                 INSERT INTO invocations (
@@ -169,7 +177,13 @@ class TelemetryStore:
                     0,
                 ),
             )
+            authorize_start(connection, invocation, max_attempts)
         return started_at
+
+    def record_start_evidence(self, reservation_id, evidence) -> None:
+        with closing(self._connect()) as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
+            apply_start_evidence(connection, reservation_id, evidence)
 
     def record_runtime_identity(
         self,
@@ -180,6 +194,10 @@ class TelemetryStore:
         snapshot: RuntimeSnapshot,
     ) -> None:
         with closing(self._connect()) as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT * FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+            if row is None or row["completed_at"] is not None:
+                raise ExecutionRejected("terminal invocation evidence is immutable")
             connection.execute(
                 """
                 UPDATE invocations
@@ -206,7 +224,7 @@ class TelemetryStore:
         human_attention_required: bool,
         autonomous_follow_on_allowed: bool,
         error_reference: str | None = None,
-    ) -> None:
+    ) -> bool:
         usage = _usage_columns(snapshot.usage)
         cumulative = _usage_columns(snapshot.cumulative_usage, prefix="cumulative_")
         native = (
@@ -231,19 +249,42 @@ class TelemetryStore:
         }
         assignments = ", ".join(f"{name} = ?" for name in values)
         with closing(self._connect()) as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT * FROM invocations WHERE invocation_id=?", (invocation_id,)).fetchone()
+            if row is not None and row["completed_at"] is not None:
+                raise ExecutionRejected("terminal invocation evidence is immutable")
             cursor = connection.execute(
                 f"UPDATE invocations SET {assignments} WHERE invocation_id = ?",
                 (*values.values(), invocation_id),
             )
             if cursor.rowcount != 1:
                 raise KeyError(f"unknown invocation_id {invocation_id}")
+            apply_terminal(connection, invocation_id, status.value,
+                           reason.value if reason is not None else None, snapshot.usage.usage_status.value)
+            scope = connection.execute("SELECT state FROM execution_scopes WHERE execution_scope_id=?",
+                                       (row["execution_scope_id"],)).fetchone()
+            attention = human_attention_required or (scope is not None and scope["state"] == "STOPPED")
+            if attention:
+                connection.execute("UPDATE invocations SET human_attention_required=1, "
+                                   "autonomous_follow_on_allowed=0 WHERE invocation_id=?", (invocation_id,))
+        return attention
 
     def fetch(self, invocation_id: str) -> dict[str, Any] | None:
         with closing(self._connect()) as connection, connection:
             row = connection.execute(
                 "SELECT * FROM invocations WHERE invocation_id = ?", (invocation_id,)
             ).fetchone()
-        return dict(row) if row is not None else None
+            if row is not None:
+                return self._with_attempt_identity(connection, dict(row))
+        return None
+
+    @staticmethod
+    def _with_attempt_identity(connection, row):
+        identity = connection.execute("SELECT * FROM invocation_attempts WHERE invocation_id=?",
+                                      (row["invocation_id"],)).fetchone()
+        if identity is not None:
+            row.update({key: value for key, value in dict(identity).items() if value is not None})
+        return row
 
     def rows(self, *, dev_task: str | None = None) -> Iterable[dict[str, Any]]:
         sql = "SELECT * FROM invocations"
@@ -253,7 +294,7 @@ class TelemetryStore:
             params = (dev_task,)
         sql += " ORDER BY started_at, invocation_id"
         with closing(self._connect()) as connection, connection:
-            rows = [dict(row) for row in connection.execute(sql, params)]
+            rows = [self._with_attempt_identity(connection, dict(row)) for row in connection.execute(sql, params)]
         for row in rows:
             if row["runtime_native_metadata"] is not None:
                 row["runtime_native_metadata"] = json.loads(row["runtime_native_metadata"])
@@ -265,6 +306,24 @@ class TelemetryStore:
             output.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
             count += 1
         return count
+
+    def attempt_aggregate(self, execution_scope_id: str, attempt_number: int) -> dict[str, Any]:
+        with closing(self._connect()) as connection, connection:
+            rows = list(connection.execute(
+                "SELECT i.* FROM invocations i JOIN invocation_attempts a USING(invocation_id) "
+                "WHERE i.execution_scope_id=? AND a.attempt_number=?",
+                (execution_scope_id, attempt_number),
+            ))
+        exact = [row for row in rows if row["usage_status"] == "exact"]
+        subtotal = {name: sum(row[name] for row in exact)
+                    for name in ("input_tokens", "output_tokens", "total_tokens")}
+        complete = bool(rows) and len(exact) == len(rows)
+        result = {"execution_scope_id": execution_scope_id, "attempt_number": attempt_number,
+                  "invocation_count": len(rows), "exact_usage_count": len(exact),
+                  "usage_completeness": "complete" if complete else "incomplete", "known_subtotal": subtotal}
+        if complete:
+            result["exact_total"] = dict(subtotal)
+        return result
 
     def finalize_dev_outcome(self, dev_task: str, *, task_accepted: bool) -> str:
         """Record an immutable final DEV outcome; no row means not finalized."""
@@ -344,6 +403,14 @@ class TelemetryStore:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _schema_statements(connection, script):
+    # executescript implicitly commits: execute these simple DDL statements in
+    # the caller's BEGIN IMMEDIATE transaction for atomic, concurrent migration.
+    for statement in script.split(";"):
+        if statement.strip():
+            connection.execute(statement)
 
 
 def _usage_columns(

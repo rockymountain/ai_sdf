@@ -229,6 +229,11 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
         for err in sorted(policy_errors, key=lambda error: list(error.path)):
             loc = ".".join(map(str, err.path)) or "<root>"
             result.error(f"constitution/policies.yaml:autonomous_execution.{loc}: {err.message}")
+        autonomous = policies_doc.get("autonomous_execution")
+        if isinstance(autonomous, dict):
+            for name in ("max_invocation_seconds", "max_attempts"):
+                if type(autonomous.get(name)) is not int or autonomous[name] <= 0:
+                    result.error(f"constitution/policies.yaml:autonomous_execution.{name}: positive integer required")
     except (OSError, TypeError, json.JSONDecodeError, SchemaError) as exc:
         result.error(f"constitution/policies.yaml: autonomous execution schema unavailable: {exc}")
     try:

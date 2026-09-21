@@ -159,7 +159,7 @@ class AIExecutionTests(unittest.TestCase):
 
     def write_policy(self, value):
         (self.repo / "constitution/policies.yaml").write_text(
-            f"version: 1\nautonomous_execution:\n  max_invocation_seconds: {value}\n",
+            f"version: 1\nautonomous_execution:\n  max_invocation_seconds: {value}\n  max_attempts: 2\n",
             encoding="utf-8",
         )
 

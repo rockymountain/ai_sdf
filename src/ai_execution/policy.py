@@ -31,6 +31,7 @@ _UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
 @dataclass(frozen=True, slots=True)
 class WatchdogPolicy:
     max_invocation_seconds: int
+    max_attempts: int
 
 
 def load_watchdog_policy(repo: Path) -> WatchdogPolicy:
@@ -53,6 +54,11 @@ def load_watchdog_policy(repo: Path) -> WatchdogPolicy:
         errors = sorted(Draft202012Validator(schema).iter_errors(policy), key=lambda error: list(error.path))
         if errors:
             raise ValueError("; ".join(error.message for error in errors))
-        return WatchdogPolicy(policy["max_invocation_seconds"])
+        # JSON Schema regards 2.0 as an integer; canonical YAML must actually
+        # contain integers, and booleans must never act as numeric policy.
+        for name in ("max_invocation_seconds", "max_attempts"):
+            if type(policy[name]) is not int or policy[name] <= 0:
+                raise ValueError(f"{name} must be a positive integer")
+        return WatchdogPolicy(policy["max_invocation_seconds"], policy["max_attempts"])
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
         raise ValueError(f"canonical watchdog policy unavailable: {exc}") from exc

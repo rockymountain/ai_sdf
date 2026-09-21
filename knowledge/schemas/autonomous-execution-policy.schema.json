@@ -3,9 +3,14 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "max_invocation_seconds"
+    "max_invocation_seconds",
+    "max_attempts"
   ],
   "properties": {
+    "max_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
     "max_invocation_seconds": {
       "type": "integer",
       "minimum": 1
