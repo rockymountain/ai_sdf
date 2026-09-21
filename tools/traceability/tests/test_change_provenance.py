@@ -3,7 +3,7 @@ import unittest
 
 import yaml
 
-from test_validator import copy_repo, validator
+from test_validator import copy_repo, initialize_git_repository, validator
 
 
 class ChangeProvenanceTests(unittest.TestCase):
@@ -16,11 +16,13 @@ class ChangeProvenanceTests(unittest.TestCase):
         self.addCleanup(td.cleanup)
         if configure:
             configure(repo)
-        self.git(repo, "init", "-b", "main")
-        self.git(repo, "config", "user.name", "Provenance Test")
-        self.git(repo, "config", "user.email", "provenance@example.test")
-        self.git(repo, "add", ".")
-        self.git(repo, "commit", "-m", "baseline")
+        run = initialize_git_repository(
+            repo,
+            user_email="provenance@example.test",
+            user_name="Provenance Test",
+        )
+        run("add", ".")
+        run("commit", "-m", "baseline")
         return repo, self.git(repo, "rev-parse", "HEAD")
 
     def commit(self, repo, paths, message="[DEV-001] change"):

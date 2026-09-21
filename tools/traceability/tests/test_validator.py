@@ -25,6 +25,19 @@ def copy_repo() -> tuple[tempfile.TemporaryDirectory, Path]:
     return td, dst
 
 
+def initialize_git_repository(repo: Path, *, user_email: str, user_name: str):
+    def run(*args):
+        subprocess.run(["git", *args], cwd=repo, check=True, text=True, capture_output=True)
+
+    run("init", "-b", "main")
+    run("config", "--local", "maintenance.auto", "false")
+    run("config", "--local", "maintenance.autoDetach", "false")
+    run("config", "--local", "gc.auto", "0")
+    run("config", "--local", "user.email", user_email)
+    run("config", "--local", "user.name", user_name)
+    return run
+
+
 class ValidatorTests(unittest.TestCase):
     def run_static(self, repo: Path):
         result = validator.ValidationErrorSet()
@@ -223,15 +236,32 @@ class ValidatorTests(unittest.TestCase):
 
 
     def init_git(self, repo: Path):
-        def run(*args):
-            subprocess.run(["git", *args], cwd=repo, check=True, text=True, capture_output=True)
-        run("init", "-b", "main")
-        run("config", "user.email", "phase0@example.test")
-        run("config", "user.name", "Phase0 Test")
+        run = initialize_git_repository(
+            repo,
+            user_email="phase0@example.test",
+            user_name="Phase0 Test",
+        )
         run("add", ".")
         run("commit", "-m", "baseline")
         base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
         return run, base
+
+    def test_git_fixture_disables_background_maintenance(self):
+        td, repo = copy_repo(); self.addCleanup(td.cleanup)
+        self.init_git(repo)
+        expected = {
+            "maintenance.auto": "false",
+            "maintenance.autoDetach": "false",
+            "gc.auto": "0",
+        }
+        for name, value in expected.items():
+            with self.subTest(name=name):
+                actual = subprocess.check_output(
+                    ["git", "config", "--local", "--get", name],
+                    cwd=repo,
+                    text=True,
+                ).strip()
+                self.assertEqual(value, actual)
 
     @staticmethod
     def t2_body():
