@@ -3,7 +3,7 @@ id: TEST-008
 kind: verification
 title: Bounded autonomous execution deterministic verification
 status: verified
-version: 1
+version: 2
 verification_type: runtime
 ---
 
@@ -35,6 +35,49 @@ Schema 3 is added in one `BEGIN IMMEDIATE` transaction, including the v1-to-v2
 upgrade when needed. It leaves existing invocation columns and finalized DEV
 outcomes intact. New attempt identities are stored separately and exported only
 when present, so historical non-attempt evidence acquires no invented attempt.
+
+## Attempt-2 audit correction
+
+The correction audit found two implementation defects in commit
+`b459068608ea599bf20a8107ae4c3fbe6e4cb72f`:
+
+1. resolving one STOP condition could assign `ACTIVE` even while independent
+   unknown-usage or terminal evidence still blocked autonomy;
+2. a scope created implicitly for nonimplementation telemetry could later reserve
+   implementation capacity without trusted workflow registration.
+
+The correction derives all currently applicable blockers from durable reservation,
+attempt, invocation, and execution-evidence rows inside the same `BEGIN IMMEDIATE`
+transaction used by each transition. `ACTIVE` is restored only when that complete
+set is empty. The P1-I16 exception is limited to the affirmatively evidenced
+`interrupted/usage_limit` predecessor chain for the same authorized continuation;
+it does not exempt an unrelated review or other invocation.
+
+Trusted `create_scope` now appends `objective_registered` evidence. Authorized
+successors retain their existing `successor_authorized` evidence. `reserve` and the
+gateway require one of those durable authorities. Compatibility scopes created by
+review, orchestration, or acceptance validation remain valid for telemetry and
+lifecycle enforcement, but cannot reserve capacity until `create_scope` explicitly
+registers the same unchanged identity. Pre-correction schema-3 roots without either
+authority fail closed; no prompt or provider metadata is used to infer authority.
+
+Fresh correction verification on 2026-09-21 passed:
+
+- Correction-specific adversarial suite: 9 tests.
+- Focused DEV-008 suite: 43 tests in 9.464 seconds.
+- Complete suite: 130 tests in 90.286 seconds.
+- DEV-007 telemetry/watchdog regressions: 27 tests in 4.893 seconds.
+- Environment, static traceability, QG-004 committed-change evidence, AGENTS.md
+  reproducibility, and `git diff --check`: passed.
+
+The correction-specific evidence proves that releasing an unresolved reservation
+does not clear an unrelated unknown-usage review blocker; continuation of a
+suspended usage-limit attempt is rejected before the runtime port while that
+independent blocker remains; and an implicitly created nonimplementation scope
+cannot reserve or start implementation work. Separate positive cases prove that
+legal resolution of the only blocker restores the applicable state, explicit
+`create_scope` registration permits reservation, and a human-authorized successor
+retains reservation authority across store restart.
 
 # Reproduction
 

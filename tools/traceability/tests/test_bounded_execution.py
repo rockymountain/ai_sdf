@@ -116,6 +116,153 @@ class BoundedExecutionTests(unittest.TestCase):
         data["autonomous_execution"]["max_invocation_seconds"] = 1
         path.write_text(yaml.safe_dump(data))
 
+    def test_a_release_preserves_independent_unknown_review_blocker(self):
+        with self.assertRaises(InvocationRejected):
+            self.invoke(Port(StartDisposition.uncertain))
+        review = self.invocation(invocation_purpose=InvocationPurpose.review, human_authorization=AUTH)
+        port = Port(usage=UsageEvidence.unknown())
+        gateway = ControlledInvocationGateway(self.repo, self.store, port)
+        gateway.invoke(review, "authorized review")
+        rid = self.snapshot()["reservations"][0]["reservation_id"]
+        self.controller.resolve_reservation(rid, StartEvidence(StartDisposition.not_started, "definite non-start"), authorization=AUTH)
+        self.assertEqual("RELEASED", self.snapshot()["reservations"][0]["state"])
+        self.assertEqual("STOPPED", self.snapshot()["scope"]["state"])
+        restarted = BoundedExecutionController(self.repo, TelemetryStore(self.path))
+        with self.assertRaises(ExecutionRejected):
+            restarted.reserve("scope")
+        with self.assertRaises(InvocationRejected):
+            gateway.invoke(self.invocation(reservation_id=rid, candidate_attempt_number=1), "blocked implementation")
+        self.assertEqual(1, port.starts, "release must not permit a new port call")
+        self.assertEqual("unknown", self.store.fetch(review.invocation_id)["usage_status"])
+
+    def test_b_continuation_preserves_independent_unknown_review_blocker(self):
+        first, _, _ = self.invoke(Port(status=TerminalStatus.interrupted, reason=TerminalReason.usage_limit,
+                                      usage=UsageEvidence.unknown()))
+        port = Port(usage=UsageEvidence.unknown())
+        review = self.invocation(invocation_purpose=InvocationPurpose.review, human_authorization=AUTH)
+        ControlledInvocationGateway(self.repo, self.store, port).invoke(review, "authorized review")
+        before = self.snapshot()
+        continuation = self.invocation(invocation_purpose=InvocationPurpose.continuation, attempt_number=1,
+                                       resume_of_invocation_id=first.invocation_id, human_authorization=AUTH)
+        restarted = TelemetryStore(self.path)
+        with self.assertRaises(InvocationRejected):
+            ControlledInvocationGateway(self.repo, restarted, port).invoke(continuation, "blocked continuation")
+        self.assertEqual(1, port.starts, "unrelated unknown usage must block before mutation capability reaches the port")
+        self.assertEqual(before, self.snapshot())
+        self.assertIsNone(restarted.fetch(continuation.invocation_id))
+
+    def test_c_implicit_nonimplementation_scope_cannot_reserve(self):
+        for purpose in (InvocationPurpose.review, InvocationPurpose.orchestration, InvocationPurpose.acceptance_validation):
+            with self.subTest(purpose=purpose):
+                scope = f"implicit-{purpose}"
+                inv = self.invocation(execution_scope_id=scope, objective_id=scope, invocation_purpose=purpose,
+                                      human_authorization=AUTH)
+                review_port = Port()
+                ControlledInvocationGateway(self.repo, self.store, review_port).invoke(inv, "nonimplementation")
+                self.assertFalse(review_port.capability.repository_mutation)
+                reopened = TelemetryStore(self.path)
+                with self.assertRaises(ExecutionRejected):
+                    BoundedExecutionController(self.repo, reopened).reserve(scope)
+                implementation_port = Port()
+                with self.assertRaises(InvocationRejected):
+                    ControlledInvocationGateway(self.repo, reopened, implementation_port).invoke(
+                        self.invocation(execution_scope_id=scope, objective_id=scope,
+                                        reservation_id="forged", candidate_attempt_number=1), "blocked implementation")
+                self.assertEqual(0, implementation_port.starts)
+
+    def test_explicit_registration_and_successor_authority_survive_restart(self):
+        reopened = TelemetryStore(self.path)
+        controller = BoundedExecutionController(self.repo, reopened)
+        registration = self.snapshot()["execution_evidence"][0]
+        self.assertEqual("objective_registered", registration["kind"])
+        self.assertEqual("objective", json.loads(registration["payload"])["objective_id"])
+        reservation = controller.reserve("scope")
+        controller.resolve_reservation(reservation["reservation_id"], StartEvidence(StartDisposition.uncertain, "lost start evidence"))
+        controller.successor_scope("scope", "successor", authorization=AUTH)
+        restarted = BoundedExecutionController(self.repo, TelemetryStore(self.path))
+        self.assertEqual(1, restarted.reserve("successor")["candidate_attempt_number"])
+        with self.assertRaises(ExecutionRejected):
+            restarted.reserve("scope")
+
+    def test_explicit_registration_of_implicit_scope_preserves_existing_blockers(self):
+        for usage in (UsageEvidence.exact(3, 2, 5), UsageEvidence.unknown()):
+            with self.subTest(usage=usage):
+                scope = f"implicit-{usage.usage_status}"
+                review = self.invocation(execution_scope_id=scope, objective_id=scope,
+                                         invocation_purpose=InvocationPurpose.review)
+                ControlledInvocationGateway(self.repo, self.store, Port(usage=usage)).invoke(review, "review")
+                before = self.store.fetch(review.invocation_id)
+                self.controller.create_scope(scope, dev_task="DEV-008", objective_id=scope, source_revision="base")
+                restarted = BoundedExecutionController(self.repo, TelemetryStore(self.path))
+                if usage.usage_status == "unknown":
+                    self.assertEqual("STOPPED", restarted.snapshot(scope)["scope"]["state"])
+                    with self.assertRaises(ExecutionRejected):
+                        restarted.reserve(scope)
+                else:
+                    self.assertEqual(1, restarted.reserve(scope)["candidate_attempt_number"])
+                self.assertEqual(before, self.store.fetch(review.invocation_id))
+
+    def test_legacy_root_and_existing_reservation_do_not_imply_registration(self):
+        reservation = self.controller.reserve("scope")
+        # Reproduce a schema-3 root written before explicit registration evidence
+        # existed. Neither an old ACTIVE flag nor its reservation proves authority.
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.execute("DELETE FROM execution_evidence WHERE kind='objective_registered'")
+        reopened = TelemetryStore(self.path)
+        port = Port()
+        invocation = self.invocation(**reservation)
+        with self.assertRaises(InvocationRejected):
+            ControlledInvocationGateway(self.repo, reopened, port).invoke(invocation, "unregistered work")
+        self.assertEqual(0, port.starts)
+        controller = BoundedExecutionController(self.repo, reopened)
+        controller.create_scope("scope", dev_task="DEV-008", objective_id="objective", source_revision="base")
+        ControlledInvocationGateway(self.repo, reopened, port).invoke(invocation, "explicitly registered work")
+        self.assertEqual(1, port.starts)
+        self.assertEqual(1, len(self.snapshot()["reservations"]), "registration must not reset capacity")
+
+    def test_consumed_resolution_composes_independent_review_blocker(self):
+        self.invoke(Port(disposition=None))
+        self.assertEqual("UNRESOLVED", self.snapshot()["reservations"][0]["state"])
+        ControlledInvocationGateway(self.repo, self.store, Port(usage=UsageEvidence.unknown())).invoke(
+            self.invocation(invocation_purpose=InvocationPurpose.review, human_authorization=AUTH), "review")
+        rid = self.snapshot()["reservations"][0]["reservation_id"]
+        self.controller.resolve_reservation(rid, StartEvidence(StartDisposition.accepted, "recovered acceptance"), authorization=AUTH)
+        self.assertEqual("OPEN", self.snapshot()["attempts"][0]["state"])
+        self.assertEqual("STOPPED", self.snapshot()["scope"]["state"])
+        self.controller.close_attempt("scope", 1, FAIL)
+        self.assertEqual("STOPPED", self.snapshot()["scope"]["state"])
+        with self.assertRaises(ExecutionRejected):
+            self.controller.reserve("scope")
+
+    def test_consumed_resolution_without_other_blockers_restores_active(self):
+        self.invoke(Port(disposition=None))
+        rid = self.snapshot()["reservations"][0]["reservation_id"]
+        self.controller.resolve_reservation(rid, StartEvidence(StartDisposition.accepted, "recovered acceptance"), authorization=AUTH)
+        self.assertEqual("OPEN", self.snapshot()["attempts"][0]["state"])
+        self.assertEqual("ACTIVE", self.snapshot()["scope"]["state"])
+        with self.assertRaises(ExecutionRejected):
+            self.controller.reserve("scope")
+        self.controller.close_attempt("scope", 1, FAIL)
+        self.assertEqual(2, self.controller.reserve("scope")["candidate_attempt_number"])
+
+    def test_unrelated_terminal_review_blocker_is_not_usage_limit_lineage(self):
+        for status, reason in ((TerminalStatus.failure, TerminalReason.runtime_error),
+                               (TerminalStatus.interrupted, TerminalReason.usage_limit)):
+            with self.subTest(status=status):
+                scope = f"scope-review-{status}"
+                self.controller.create_scope(scope, dev_task="DEV-008", objective_id=scope, source_revision="base")
+                first, _, _ = self.invoke(Port(status=TerminalStatus.interrupted, reason=TerminalReason.usage_limit),
+                                          execution_scope_id=scope, objective_id=scope)
+                port = Port(status=status, reason=reason)
+                gateway = ControlledInvocationGateway(self.repo, self.store, port)
+                gateway.invoke(self.invocation(execution_scope_id=scope, objective_id=scope,
+                                               invocation_purpose=InvocationPurpose.review, human_authorization=AUTH), "review")
+                with self.assertRaises(InvocationRejected):
+                    gateway.invoke(self.invocation(execution_scope_id=scope, objective_id=scope,
+                                                   invocation_purpose=InvocationPurpose.continuation, attempt_number=1,
+                                                   resume_of_invocation_id=first.invocation_id, human_authorization=AUTH), "resume")
+                self.assertEqual(1, port.starts)
+
     def test_canonical_budget_and_invalid_policy_fail_closed_before_port(self):
         self.assertEqual(2, load_watchdog_policy(ROOT).max_attempts)
         self.assertEqual(600, load_watchdog_policy(ROOT).max_invocation_seconds)
@@ -178,7 +325,10 @@ class BoundedExecutionTests(unittest.TestCase):
             self.controller.resolve_reservation(reservation["reservation_id"], evidence)
         self.controller.resolve_reservation(reservation["reservation_id"], evidence, authorization=AUTH)
         self.assertEqual(1, self.controller.reserve("scope")["candidate_attempt_number"])
-        self.assertEqual(4, len(self.snapshot()["execution_evidence"]))
+        self.assertEqual(
+            ["objective_registered", "reservation_reserved", "reservation_unresolved", "reservation_released", "reservation_reserved"],
+            [row["kind"] for row in self.snapshot()["execution_evidence"]],
+        )
 
     def test_unresolved_accepted_resolution_consumes_but_retains_terminal_uncertainty(self):
         with self.assertRaises(InvocationRejected):

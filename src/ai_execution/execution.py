@@ -134,6 +134,107 @@ def _legacy_state(connection, scope_id, exclude_invocation_id=""):
     return "STOPPED" if unsafe else "ACTIVE"
 
 
+def _implementation_authority(connection, scope):
+    """Only trusted workflow events register capacity, never invocation metadata.
+
+    Old roots without registration evidence fail closed until create_scope is
+    explicitly called with their unchanged identity. No schema backfill guesses
+    whether an old root was registered or created by the compatibility path.
+    """
+    return connection.execute(
+        "SELECT 1 FROM execution_evidence WHERE execution_scope_id=? AND "
+        "(kind='objective_registered' OR (kind='successor_authorized' AND ? IS NOT NULL AND ? IS NOT NULL))",
+        (scope["execution_scope_id"], scope["predecessor_scope_id"], scope["authorization"]),
+    ).fetchone() is not None
+
+
+def _autonomy_blockers(connection, scope_id, *, active_invocation_id=None, resume_of=None):
+    """Derive independent blockers from retained evidence in the caller's transaction.
+
+    P1-I16 exempts only interrupted/usage_limit predecessors in the authorized
+    continuation chain of the current open attempt. It never exempts a review,
+    another attempt, or unknown usage when allocating a new attempt.
+    """
+    attempts = {row["attempt_number"]: row for row in connection.execute(
+        "SELECT * FROM attempts WHERE execution_scope_id=?", (scope_id,))}
+    invocations = {row["invocation_id"]: row for row in connection.execute(
+        "SELECT i.*, a.reservation_id, a.attempt_number, a.resume_of_invocation_id, a.human_authorization "
+        "FROM invocations i LEFT JOIN invocation_attempts a USING(invocation_id) WHERE i.execution_scope_id=?",
+        (scope_id,))}
+    reservations = {row["reservation_id"]: row for row in connection.execute(
+        "SELECT * FROM reservations WHERE execution_scope_id=?", (scope_id,))}
+    recovered_usage_limits = set()
+    authorized_releases = set()
+    for row in connection.execute("SELECT * FROM execution_evidence WHERE execution_scope_id=?", (scope_id,)):
+        if row["kind"] == "recovered_usage_limit":
+            payload = json.loads(row["payload"])
+            if (payload.get("terminal_status") == "interrupted" and payload.get("terminal_reason") == "usage_limit"
+                    and payload.get("authorization")):
+                recovered_usage_limits.add(row["invocation_id"])
+        elif row["kind"] == "reservation_released" and json.loads(row["payload"]).get("authorization"):
+            authorized_releases.add(row["reservation_id"])
+
+    lineage = set()
+    resuming_attempt = None
+    for number, attempt in attempts.items():
+        latest = invocations.get(attempt["latest_invocation_id"])
+        if attempt["state"] == "SUSPENDED" and attempt["latest_invocation_id"] == resume_of:
+            predecessor = latest
+            resuming_attempt = number
+        elif (attempt["state"] == "OPEN" and latest is not None
+              and latest["invocation_purpose"] == "continuation" and latest["human_authorization"]):
+            predecessor = invocations.get(latest["resume_of_invocation_id"])
+        else:
+            continue
+        while predecessor is not None and predecessor["invocation_id"] not in lineage:
+            if predecessor["attempt_number"] != number:
+                break
+            lineage.add(predecessor["invocation_id"])
+            if not predecessor["human_authorization"]:
+                break
+            predecessor = invocations.get(predecessor["resume_of_invocation_id"])
+
+    blockers = {f"reservation:{rid}" for rid, row in reservations.items() if row["state"] == "UNRESOLVED"}
+    blockers.update(f"attempt:{number}" for number, row in attempts.items()
+                    if row["state"] in {"SUSPENDED", "RECONCILIATION_REQUIRED"} and number != resuming_attempt)
+    for invocation_id, row in invocations.items():
+        if row["completed_at"] is None:
+            if invocation_id != active_invocation_id:
+                blockers.add(f"inflight:{invocation_id}")
+            continue
+        reservation = reservations.get(row["reservation_id"])
+        if reservation is not None and reservation["state"] == "RELEASED":
+            # Affirmative non-start resolves this invocation only. A pre-start
+            # timeout still needs human disposition, evidenced by its release.
+            if row["terminal_status"] != "timeout" or row["reservation_id"] in authorized_releases:
+                continue
+        usage_limit = ((row["terminal_status"] == "interrupted" and row["terminal_reason"] == "usage_limit")
+                       or invocation_id in recovered_usage_limits)
+        if invocation_id in lineage and usage_limit:
+            continue
+        if row["usage_status"] != "exact":
+            blockers.add(f"usage:{invocation_id}")
+        attempt = attempts.get(row["attempt_number"])
+        checkpoint_closed = attempt is not None and attempt["state"] in {"PASSED", "FAILED"}
+        if row["terminal_status"] != "success" and not checkpoint_closed:
+            blockers.add(f"terminal:{invocation_id}")
+    return blockers
+
+
+def _refresh_scope_state(connection, scope_id, *, active_invocation_id=None):
+    scope = _scope(connection, scope_id, mutable=False)
+    # Closed/predecessor evidence stays immutable. All other state changes must
+    # compose the remaining blockers rather than unconditionally assign ACTIVE.
+    if scope["state"] in {"ACCEPTED", "CIRCUIT_OPEN"} or connection.execute(
+        "SELECT 1 FROM execution_scopes WHERE predecessor_scope_id=?", (scope_id,)
+    ).fetchone():
+        return scope
+    blockers = _autonomy_blockers(connection, scope_id, active_invocation_id=active_invocation_id)
+    connection.execute("UPDATE execution_scopes SET state=? WHERE execution_scope_id=?",
+                       ("STOPPED" if blockers else "ACTIVE", scope_id))
+    return _scope(connection, scope_id)
+
+
 def authorize_start(connection, invocation, max_attempts):
     """Called inside the same transaction that persists invocation start."""
     scope_id = invocation.execution_scope_id
@@ -152,7 +253,8 @@ def authorize_start(connection, invocation, max_attempts):
              invocation.source_revision, max_attempts,
              _legacy_state(connection, scope_id, invocation.invocation_id), now()),
         )
-    scope = _scope(connection, scope_id)
+    _scope(connection, scope_id)
+    scope = _refresh_scope_state(connection, scope_id, active_invocation_id=invocation.invocation_id)
     if (scope["dev_task"] != invocation.dev_task
             or scope["source_revision"] != invocation.source_revision
             or scope["max_attempts"] != max_attempts):
@@ -178,6 +280,8 @@ def authorize_start(connection, invocation, max_attempts):
         return
     if invocation.objective_id != scope["objective_id"]:
         raise ExecutionRejected("implementation objective must remain unchanged")
+    if not _implementation_authority(connection, scope):
+        raise ExecutionRejected("explicit trusted implementation objective registration is required")
     if purpose == InvocationPurpose.implementation:
         if scope["state"] != "ACTIVE":
             raise ExecutionRejected("scope is stopped")
@@ -210,6 +314,9 @@ def authorize_start(connection, invocation, max_attempts):
         if (attempt is None or attempt["state"] != "SUSPENDED"
                 or attempt["latest_invocation_id"] != invocation.resume_of_invocation_id):
             raise ExecutionRejected("continuation requires suspended, open checkpoint and predecessor lineage")
+        if _autonomy_blockers(connection, scope_id, active_invocation_id=invocation.invocation_id,
+                              resume_of=invocation.resume_of_invocation_id):
+            raise ExecutionRejected("independent autonomy blockers prevent continuation")
         connection.execute(
             "INSERT INTO invocation_attempts VALUES (?,NULL,NULL,?,?,?)",
             (invocation.invocation_id, invocation.attempt_number,
@@ -220,9 +327,9 @@ def authorize_start(connection, invocation, max_attempts):
             "WHERE execution_scope_id=? AND attempt_number=?",
             (invocation.invocation_id, scope_id, invocation.attempt_number),
         )
-        connection.execute("UPDATE execution_scopes SET state='ACTIVE' WHERE execution_scope_id=?", (scope_id,))
         _event(connection, scope_id, "continuation_authorized", json.loads(authorization),
                invocation_id=invocation.invocation_id)
+        _refresh_scope_state(connection, scope_id, active_invocation_id=invocation.invocation_id)
 
 
 def apply_start_evidence(connection, reservation_id, evidence, *, authorization=None):
@@ -262,12 +369,7 @@ def apply_start_evidence(connection, reservation_id, evidence, *, authorization=
     if authorization is not None:
         payload["authorization"] = json.loads(_authorization(authorization))
     _event(connection, scope_id, "reservation_" + state.lower(), payload, reservation_id, invocation_id)
-    # A human affirmative resolution reopens only proven capacity; terminal
-    # uncertainty of a consumed attempt still stops implementation.
-    stopped = state == "UNRESOLVED" or (state == "CONSUMED" and attempt_state != "OPEN")
-    if reservation["state"] == "UNRESOLVED" or stopped:
-        connection.execute("UPDATE execution_scopes SET state=? WHERE execution_scope_id=?",
-                           ("STOPPED" if stopped else "ACTIVE", scope_id))
+    _refresh_scope_state(connection, scope_id, active_invocation_id=invocation_id)
 
 
 def terminal_attempt_state(status, reason, usage_status):
@@ -286,7 +388,6 @@ def apply_terminal(connection, invocation_id, status, reason, usage_status):
         return
     _scope(connection, scope_id)
     identity = connection.execute("SELECT * FROM invocation_attempts WHERE invocation_id=?", (invocation_id,)).fetchone()
-    stopped = status != "success" or usage_status != "exact"
     if identity is not None:
         if identity["reservation_id"] is not None and identity["attempt_number"] is None:
             reservation = connection.execute("SELECT * FROM reservations WHERE reservation_id=?",
@@ -294,15 +395,11 @@ def apply_terminal(connection, invocation_id, status, reason, usage_status):
             if reservation["state"] == "RESERVED":
                 apply_start_evidence(connection, reservation["reservation_id"],
                                      StartEvidence(StartDisposition.uncertain, "start returned without affirmative evidence"))
-            stopped = stopped or reservation["state"] in {"RESERVED", "UNRESOLVED"}
-            if reservation["state"] == "RELEASED" and status != "timeout":
-                stopped = False
         if identity["attempt_number"] is not None:
             state = terminal_attempt_state(status, reason, usage_status)
             connection.execute("UPDATE attempts SET state=? WHERE execution_scope_id=? AND attempt_number=?",
                                (state, scope_id, identity["attempt_number"]))
-    if stopped:
-        connection.execute("UPDATE execution_scopes SET state='STOPPED' WHERE execution_scope_id=?", (scope_id,))
+    _refresh_scope_state(connection, scope_id)
 
 
 class BoundedExecutionController:
@@ -321,18 +418,34 @@ class BoundedExecutionController:
             _text(value, name)
         with closing(self.store._connect()) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute("SELECT * FROM execution_scopes WHERE execution_scope_id=?", (scope_id,)).fetchone()
+            if existing is not None:
+                _scope(connection, scope_id)
+                if (_implementation_authority(connection, existing)
+                        or (existing["dev_task"], existing["objective_id"], existing["source_revision"], existing["max_attempts"])
+                        != (dev_task, objective_id, source_revision, budget)):
+                    raise ExecutionRejected("scope is already registered or its identity differs")
+                _event(connection, scope_id, "objective_registered",
+                       {"dev_task": dev_task, "objective_id": objective_id, "source_revision": source_revision})
+                _refresh_scope_state(connection, scope_id)
+                return
             if connection.execute("SELECT 1 FROM execution_scopes WHERE dev_task=? AND objective_id=?",
                                   (dev_task, objective_id)).fetchone():
                 raise ExecutionRejected("objective already has a scope; linked human-authorized successor required")
             connection.execute("INSERT INTO execution_scopes VALUES (?,?,?,?,?,?,NULL,NULL,?)",
                                (scope_id, dev_task, objective_id, source_revision, budget,
                                 _legacy_state(connection, scope_id), now()))
+            _event(connection, scope_id, "objective_registered",
+                   {"dev_task": dev_task, "objective_id": objective_id, "source_revision": source_revision})
 
     def reserve(self, scope_id):
         budget = self._budget()
         with closing(self.store._connect()) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             scope = _scope(connection, scope_id)
+            if not _implementation_authority(connection, scope):
+                raise ExecutionRejected("explicit trusted implementation objective registration is required")
+            scope = _refresh_scope_state(connection, scope_id)
             if scope["state"] != "ACTIVE" or scope["max_attempts"] != budget:
                 raise ExecutionRejected("scope is stopped or canonical policy changed")
             _no_live_invocation(connection, scope_id)
@@ -382,13 +495,8 @@ class BoundedExecutionController:
             connection.execute("UPDATE attempts SET state=? WHERE execution_scope_id=? AND attempt_number=?",
                                ("PASSED" if passed else "FAILED", scope_id, attempt_number))
             state = "ACCEPTED" if passed else ("CIRCUIT_OPEN" if attempt_number >= budget else "ACTIVE")
-            # Unknown usage cannot silently authorize another autonomous attempt.
-            if state == "ACTIVE" and connection.execute(
-                "SELECT 1 FROM invocations WHERE execution_scope_id=? AND (usage_status IS NULL OR usage_status<>'exact')",
-                (scope_id,),
-            ).fetchone():
-                state = "STOPPED"
             connection.execute("UPDATE execution_scopes SET state=? WHERE execution_scope_id=?", (state, scope_id))
+            state = _refresh_scope_state(connection, scope_id)["state"]
             _event(connection, scope_id, "scope_" + state.lower(), {"attempt_number": attempt_number})
 
     def recover_usage_limit(self, scope_id, attempt_number, *, invocation_id, status, reason, evidence_reference, authorization):
