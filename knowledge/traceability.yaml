@@ -212,3 +212,12 @@ tasks:
         - knowledge/traceability.yaml
         - design/tasks/DEV-009.md
         - examples/DEV-009-pr-body.md
+
+  DEV-010:
+    level: T0
+    implementation:
+      paths:
+        - tools/traceability/tests/test_change_provenance.py
+        - tools/traceability/tests/test_validator.py
+        - knowledge/traceability.yaml
+        - design/tasks/DEV-010.md
