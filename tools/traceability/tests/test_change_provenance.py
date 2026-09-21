@@ -44,6 +44,10 @@ class ChangeProvenanceTests(unittest.TestCase):
             text += "- [x] I confirm this change does **NOT** create a compliance concern.\n"
         return text
 
+    @staticmethod
+    def owner_body(owner_id="CTRL-CHANGE-001", kind="project_control"):
+        return f"Change Owner: {owner_id}\nChange Owner Kind: {kind}\n"
+
     def evidence(self, repo, base, head, body):
         result = validator.ValidationErrorSet()
         registry = validator.scan_artifacts(repo, result)
@@ -214,6 +218,156 @@ class ChangeProvenanceTests(unittest.TestCase):
             with self.subTest(config=config):
                 with self.assertRaises(ValueError):
                     validator.provenance_exclusions({"change_provenance": config})
+
+    def test_base_authorized_project_control_owner_covers_control_path(self):
+        repo, base = self.repository()
+        head = self.commit(repo, ["control/roadmap.md"], "[CTRL-CHANGE-001] update roadmap")
+        self.assertEqual([], self.evidence(repo, base, head, self.owner_body()))
+
+    def test_one_owner_covers_multiple_control_paths(self):
+        repo, base = self.repository()
+        head = self.commit(
+            repo,
+            ["control/roadmap.md", "control/baselines/current.md"],
+            "[CTRL-CHANGE-001] update project control",
+        )
+        self.assertEqual([], self.evidence(repo, base, head, self.owner_body()))
+
+    def test_change_owner_requires_commit_marker(self):
+        repo, base = self.repository()
+        head = self.commit(repo, ["control/roadmap.md"], "Update roadmap")
+        errors = self.evidence(repo, base, head, self.owner_body())
+        self.assertTrue(any("required marker [CTRL-CHANGE-001]" in error for error in errors), errors)
+
+    def test_malformed_unknown_missing_and_duplicate_owner_declarations_fail(self):
+        cases = (
+            (self.owner_body("CTRL-1"), "does not match"),
+            (self.owner_body(kind="unknown"), "unknown Change Owner Kind"),
+            ("Change Owner: CTRL-CHANGE-001\n", "missing Change Owner Kind"),
+            ("Change Owner Kind: project_control\n", "missing Change Owner ID"),
+            (self.owner_body() + self.owner_body(), "duplicate Change Owner ID"),
+        )
+        for body, expected in cases:
+            with self.subTest(expected=expected):
+                repo, base = self.repository()
+                head = self.commit(repo, ["control/roadmap.md"], "[CTRL-CHANGE-001] update roadmap")
+                errors = self.evidence(repo, base, head, body)
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_owner_id_cannot_be_reused_from_base_history(self):
+        repo, original_base = self.repository()
+        historical = self.commit(repo, ["README.md"], "[CTRL-CHANGE-001] historical control change")
+        self.assertNotEqual(original_base, historical)
+        head = self.commit(repo, ["control/roadmap.md"], "[CTRL-CHANGE-001] reused marker")
+        errors = self.evidence(repo, historical, head, self.owner_body())
+        self.assertTrue(any("already used in base history" in error for error in errors), errors)
+
+    def test_project_control_owner_cannot_cover_non_control_paths(self):
+        for path in (
+            "src/example.py",
+            "tools/example.py",
+            "constitution/policies.yaml",
+            "knowledge/traceability.yaml",
+        ):
+            with self.subTest(path=path):
+                repo, base = self.repository()
+                head = self.commit(repo, [path], "[CTRL-CHANGE-001] invalid ownership")
+                errors = self.evidence(repo, base, head, self.owner_body())
+                self.assertTrue(any(f"uncovered changed path {path}" in error for error in errors), errors)
+
+    def test_unowned_control_path_remains_required(self):
+        repo, base = self.repository()
+        head = self.commit(repo, ["control/roadmap.md"], "Update roadmap")
+        errors = self.evidence(repo, base, head, "")
+        self.assertTrue(any("uncovered changed path control/roadmap.md" in error for error in errors), errors)
+
+    def test_proposed_owner_kind_cannot_self_authorize(self):
+        def without_owner_kind(repo):
+            self.edit_yaml(
+                repo,
+                "constitution/policies.yaml",
+                lambda policies: policies["change_provenance"].pop("owner_kinds"),
+            )
+
+        repo, base = self.repository(without_owner_kind)
+        self.edit_yaml(
+            repo,
+            "constitution/policies.yaml",
+            lambda policies: policies["change_provenance"].update(owner_kinds={
+                "project_control": {
+                    "id_pattern": "^CTRL-CHANGE-[0-9]{3,}$",
+                    "allowed_paths": ["control/**"],
+                }
+            }),
+        )
+        head = self.commit(
+            repo,
+            ["constitution/policies.yaml", "control/roadmap.md"],
+            "[CTRL-CHANGE-001] self authorize",
+        )
+        errors = self.evidence(repo, base, head, self.owner_body())
+        self.assertTrue(any("unknown Change Owner Kind" in error for error in errors), errors)
+        self.assertTrue(any("uncovered changed path control/roadmap.md" in error for error in errors), errors)
+
+    def test_proposed_allowed_paths_broadening_cannot_self_authorize(self):
+        repo, base = self.repository()
+        self.edit_yaml(
+            repo,
+            "constitution/policies.yaml",
+            lambda policies: policies["change_provenance"]["owner_kinds"]["project_control"]
+            .update(allowed_paths=["control/**", "src/**"]),
+        )
+        head = self.commit(
+            repo,
+            ["constitution/policies.yaml", "src/example.py"],
+            "[CTRL-CHANGE-001] broaden ownership",
+        )
+        errors = self.evidence(repo, base, head, self.owner_body())
+        self.assertTrue(any("uncovered changed path src/example.py" in error for error in errors), errors)
+
+    def test_proposed_malformed_owner_policy_fails_closed(self):
+        repo, base = self.repository()
+        self.edit_yaml(
+            repo,
+            "constitution/policies.yaml",
+            lambda policies: policies["change_provenance"].update(owner_kinds=[]),
+        )
+        head = self.commit(repo, ["constitution/policies.yaml"], "[DEV-003] malformed policy")
+        static = validator.ValidationErrorSet()
+        registry = validator.scan_artifacts(repo, static)
+        trace = validator.validate_traceability(repo, registry, static)
+        self.assertTrue(any("owner_kinds must be a mapping" in error for error in static.errors), static.errors)
+        result = validator.ValidationErrorSet()
+        validator.validate_change_evidence(repo, trace, self.body("DEV-003"), base, head, result)
+        self.assertTrue(any("owner_kinds must be a mapping" in error for error in result.errors), result.errors)
+
+    def test_non_task_owner_cannot_satisfy_t2_task_coverage(self):
+        def allow_design(repo):
+            self.edit_yaml(
+                repo,
+                "constitution/policies.yaml",
+                lambda policies: policies["change_provenance"]["owner_kinds"]["project_control"]
+                .update(allowed_paths=["control/**", "design/**"]),
+            )
+
+        repo, base = self.repository(allow_design)
+        head = self.commit(
+            repo,
+            ["design/architecture/CMP-001.md"],
+            "[CTRL-CHANGE-001] invalid T2 ownership",
+        )
+        errors = self.evidence(repo, base, head, self.owner_body())
+        self.assertTrue(any("hit T2 path triggers" in error for error in errors), errors)
+
+    def test_dev_and_control_owners_cover_only_their_respective_paths(self):
+        repo, base = self.repository()
+        head = self.commit(
+            repo,
+            ["src/document_indexing.py", "control/roadmap.md"],
+            "[DEV-001] [CTRL-CHANGE-001] mixed ownership",
+        )
+        body = self.body() + "\n" + self.owner_body()
+        self.assertEqual([], self.evidence(repo, base, head, body))
 
 
 if __name__ == "__main__":

@@ -199,3 +199,16 @@ tasks:
         - examples/DEV-008-pr-body.md
     verification:
       - TEST-008
+
+  DEV-009:
+    level: T0
+    implementation:
+      paths:
+        - constitution/policies.yaml
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_change_provenance.py
+        - tools/traceability/tests/test_validator.py
+        - .github/PULL_REQUEST_TEMPLATE.md
+        - knowledge/traceability.yaml
+        - design/tasks/DEV-009.md
+        - examples/DEV-009-pr-body.md

@@ -9,6 +9,13 @@ If every changed file is explicitly exempt or generated under the PR base's
 constitution/policies.yaml, omit the declaration blocks. Canonical design files,
 code, tests, governance, CI, and unclassified paths still require coverage.
 
+For a non-task owner kind authorized by the PR base policy, repeat this paired
+block as needed. Each owner ID requires its exact `[<owner-id>]` commit marker and
+covers only the base policy's allowed paths. This does not replace T2 DEV coverage.
+
+Change Owner: CTRL-CHANGE-___
+Change Owner Kind: project_control
+
 Traceability Task: DEV-___
 Traceability Level: T_
 

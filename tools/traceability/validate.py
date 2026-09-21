@@ -93,6 +93,24 @@ class ImplementationEvidenceGate:
     require_changed_path_match: bool
 
 
+@dataclass(frozen=True)
+class ChangeOwnerKind:
+    id_pattern: str
+    allowed_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ChangeProvenancePolicy:
+    exclusions: tuple[str, ...]
+    owner_kinds: dict[str, ChangeOwnerKind]
+
+
+@dataclass(frozen=True)
+class ChangeOwnerDeclaration:
+    owner_id: str
+    kind: str
+
+
 def load_implementation_evidence_gate(repo: Path, ref: str | None = None) -> ImplementationEvidenceGate:
     """Load one supported gate, not a general policy interpreter. No permissive defaults."""
     try:
@@ -317,6 +335,11 @@ def commit_messages(repo: Path, base_ref: str, head_ref: str) -> list[str]:
     return [x.strip() for x in raw.split("\x00") if x.strip()]
 
 
+def reachable_commit_messages(repo: Path, ref: str) -> list[str]:
+    raw = git(repo, "log", "--format=%B%x00", ref)
+    return [x.strip() for x in raw.split("\x00") if x.strip()]
+
+
 def parse_pr_declaration(body: str) -> tuple[str | None, str | None]:
     task_m = re.search(r"(?mi)^\s*Traceability Task:\s*(DEV-[0-9]{3,})\s*$", body)
     level_m = re.search(r"(?mi)^\s*Traceability Level:\s*(T[0-2])\s*$", body)
@@ -344,13 +367,16 @@ def parse_pr_declarations(body: str, result: ValidationErrorSet) -> list[tuple[s
     return declarations
 
 
-def provenance_exclusions(policies: dict[str, Any]) -> list[str]:
+def load_change_provenance_policy(policies: dict[str, Any]) -> ChangeProvenancePolicy:
     """Missing classification is conservative; malformed governance fails closed."""
     if not isinstance(policies, dict):
         raise ValueError("governance must be a mapping")
     config = policies.get("change_provenance", {})
-    if not isinstance(config, dict) or set(config) - {"default", "exempt_paths", "generated_paths"}:
-        raise ValueError("change_provenance must contain only default, exempt_paths, generated_paths")
+    allowed_fields = {"default", "exempt_paths", "generated_paths", "owner_kinds"}
+    if not isinstance(config, dict) or set(config) - allowed_fields:
+        raise ValueError(
+            "change_provenance must contain only default, exempt_paths, generated_paths, owner_kinds"
+        )
     if config.get("default", "required") != "required":
         raise ValueError("change_provenance.default must be required")
     exclusions = []
@@ -359,7 +385,90 @@ def provenance_exclusions(policies: dict[str, Any]) -> list[str]:
         if not isinstance(patterns, list) or any(not isinstance(p, str) or not p for p in patterns):
             raise ValueError(f"change_provenance.{category} must be a list of nonempty path patterns")
         exclusions.extend(patterns)
-    return exclusions
+    raw_kinds = config.get("owner_kinds", {})
+    if not isinstance(raw_kinds, dict):
+        raise ValueError("change_provenance.owner_kinds must be a mapping")
+    owner_kinds = {}
+    for kind, raw in raw_kinds.items():
+        prefix = f"change_provenance.owner_kinds.{kind}"
+        if not isinstance(kind, str) or not kind.strip():
+            raise ValueError("change_provenance.owner_kinds names must be nonempty strings")
+        if not isinstance(raw, dict) or set(raw) != {"id_pattern", "allowed_paths"}:
+            raise ValueError(f"{prefix} must contain exactly id_pattern and allowed_paths")
+        pattern = raw["id_pattern"]
+        if not isinstance(pattern, str) or not pattern.strip():
+            raise ValueError(f"{prefix}.id_pattern must be a nonempty regex string")
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise ValueError(f"{prefix}.id_pattern is not a valid regex: {exc}") from exc
+        paths = raw["allowed_paths"]
+        if (not isinstance(paths, list) or not paths
+                or any(not isinstance(path, str) or not path.strip() for path in paths)):
+            raise ValueError(f"{prefix}.allowed_paths must be a nonempty list of nonempty path patterns")
+        owner_kinds[kind] = ChangeOwnerKind(pattern, tuple(paths))
+    return ChangeProvenancePolicy(tuple(exclusions), owner_kinds)
+
+
+def provenance_exclusions(policies: dict[str, Any]) -> list[str]:
+    """Compatibility helper for callers that need only the exclusion patterns."""
+    return list(load_change_provenance_policy(policies).exclusions)
+
+
+def parse_change_owner_declarations(
+    body: str,
+    owner_kinds: dict[str, ChangeOwnerKind],
+    result: ValidationErrorSet,
+) -> list[ChangeOwnerDeclaration]:
+    owner_starts = list(re.finditer(r"(?mi)^\s*Change Owner:[^\r\n]*", body))
+    declaration_starts = sorted(
+        owner_starts + list(re.finditer(r"(?mi)^\s*Traceability Task:[^\r\n]*", body)),
+        key=lambda match: match.start(),
+    )
+    blocks = []
+    for owner_match in owner_starts:
+        later = [match.start() for match in declaration_starts if match.start() > owner_match.start()]
+        end = min(later) if later else len(body)
+        blocks.append((owner_match.start(), end))
+
+    kind_lines = list(re.finditer(r"(?mi)^\s*Change Owner Kind:[^\r\n]*", body))
+    for kind_line in kind_lines:
+        if not any(start < kind_line.start() < end for start, end in blocks):
+            result.error("PR body: Change Owner Kind declaration is missing Change Owner ID")
+
+    declarations = []
+    seen: dict[str, str] = {}
+    for owner_match, (start, end) in zip(owner_starts, blocks):
+        block = body[start:end]
+        owner_id = owner_match.group(0).split(":", 1)[1].strip()
+        if not owner_id:
+            result.error("PR body: Change Owner declaration is missing owner ID")
+            continue
+        kinds = re.findall(r"(?mi)^\s*Change Owner Kind:\s*([^\r\n]*)$", block)
+        if not kinds or not kinds[0].strip():
+            result.error(f"PR body: {owner_id} is missing Change Owner Kind")
+            continue
+        if len(kinds) != 1:
+            result.error(f"PR body: {owner_id} requires exactly one Change Owner Kind")
+            continue
+        kind = kinds[0].strip()
+        if owner_id in seen:
+            result.error(f"PR body: duplicate Change Owner ID {owner_id}")
+            if seen[owner_id] == kind:
+                result.error(f"PR body: duplicate change owner declaration {owner_id} / {kind}")
+            continue
+        seen[owner_id] = kind
+        policy = owner_kinds.get(kind)
+        if policy is None:
+            result.error(f"PR body: unknown Change Owner Kind {kind!r}")
+            continue
+        if re.fullmatch(policy.id_pattern, owner_id) is None:
+            result.error(
+                f"PR body: Change Owner ID {owner_id!r} does not match {kind} id_pattern"
+            )
+            continue
+        declarations.append(ChangeOwnerDeclaration(owner_id, kind))
+    return declarations
 
 
 def has_risk_attestation(body: str, level: str) -> bool:
@@ -395,13 +504,20 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
             load_implementation_evidence_gate(repo),
         )))
         messages = commit_messages(repo, base_ref, head_ref)
+        base_messages = reachable_commit_messages(repo, base_ref)
         files = changed_files(repo, base_ref, head_ref)
-        base_policies = yaml.safe_load(git(repo, "show", f"{base_ref}:constitution/policies.yaml"))
+        base_policies = yaml.load(
+            git(repo, "show", f"{base_ref}:constitution/policies.yaml"), Loader=GovernanceLoader
+        )
         if not isinstance(base_policies, dict):
             raise ValueError("base governance must be a mapping")
-        exclusions = provenance_exclusions(base_policies)
-        policies_doc = load_yaml(repo / "constitution/policies.yaml")
-        provenance_exclusions(policies_doc)  # Validate proposed policy; never self-exempt.
+        base_provenance = load_change_provenance_policy(base_policies)
+        exclusions = list(base_provenance.exclusions)
+        policies_doc = yaml.load(
+            (repo / "constitution/policies.yaml").read_text(encoding="utf-8"),
+            Loader=GovernanceLoader,
+        )
+        load_change_provenance_policy(policies_doc)  # Validate proposed policy; never self-authorize.
     except (RuntimeError, ValueError, yaml.YAMLError) as exc:
         result.error(f"git evidence: {exc}")
         return
@@ -411,6 +527,19 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
         + policies_doc.get("traceability", {}).get("t2_path_triggers", [])
     )
     declarations = parse_pr_declarations(body, result)
+    change_owners = parse_change_owner_declarations(body, base_provenance.owner_kinds, result)
+    valid_change_owners = []
+    for declaration in change_owners:
+        marker = f"[{declaration.owner_id}]"
+        if not any(marker in message for message in messages):
+            result.error(f"git evidence: no PR commit message contains required marker {marker}")
+        if any(marker in message for message in base_messages):
+            result.error(
+                f"git evidence: Change Owner ID {declaration.owner_id} was already used in base history"
+            )
+        valid_change_owners.append(
+            (declaration, base_provenance.owner_kinds[declaration.kind])
+        )
     declared_nodes = []
     for task_id, declared_level, block in declarations:
         node = trace.get("tasks", {}).get(task_id)
@@ -438,15 +567,20 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
                 )
 
     for path in files:
-        owners = [node for node in declared_nodes
-                  if path_matches([path], node.get("implementation", {}).get("paths", []))]
+        task_owners = [node for node in declared_nodes
+                       if path_matches([path], node.get("implementation", {}).get("paths", []))]
+        non_task_owners = [declaration for declaration, policy in valid_change_owners
+                           if path_matches([path], list(policy.allowed_paths))]
         if path_matches([path], t2_path_triggers):
-            if not any(node.get("level") == "T2" for node in owners):
+            if not any(node.get("level") == "T2" for node in task_owners):
                 result.error(f"risk classification: {path} hit T2 path triggers but has no declared T2 task coverage")
         elif path_matches([path], exclusions):
             continue
-        if not owners:
-            result.error(f"git evidence: uncovered changed path {path}; declare a task with matching implementation.paths")
+        if not task_owners and not non_task_owners:
+            result.error(
+                f"git evidence: uncovered changed path {path}; declare a task with matching "
+                "implementation.paths or a base-authorized change owner"
+            )
 
 
 def load_pr_body(args: argparse.Namespace) -> str | None:
