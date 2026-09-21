@@ -179,7 +179,7 @@ Current merged baseline:
 
 ```text
 main:
-  f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+  63fc3f2de53631dc1d6e32f3e1600a3cd9623afc
 ```
 
 Current project position:
@@ -192,10 +192,11 @@ Phase 1:
   in_progress
 
 Latest completed milestone:
-  M1 — Metered AI Runtime
+  M2 — Bounded Autonomous Execution
 
 Next milestone:
-  M2 — Bounded Autonomous Execution
+  M3 — AI Cost Control Baseline
+  status: planned
 ```
 
 Current measurement maturity:
@@ -228,7 +229,7 @@ be retroactively estimated as zero.
 | --- | ---------------------------------- | --------- | -------- | ------------------------------------------------------------------------------------------------ |
 | M0  | Governed Foundation                | Phase 0   | complete | Canonical, traceable, reproducible and human-governed engineering foundation                     |
 | M1  | Metered AI Runtime                 | Phase 1.0 | complete | Every controlled AI invocation can be bounded, attributed and measured                           |
-| M2  | Bounded Autonomous Execution       | Phase 1.0 | ready    | Autonomous implementation cannot exceed governed attempt/circuit limits                          |
+| M2  | Bounded Autonomous Execution       | Phase 1.0 | complete | Autonomous implementation cannot exceed governed attempt/circuit limits |
 | M3  | AI Cost Control Baseline           | Phase 1.1 | planned  | Reliable chat-heavy control window establishes cost/quality baseline                             |
 | M4  | Efficient Context                  | Phase 1.1 | planned  | Context optimization is accepted or rejected using measured ROI                                  |
 | M5  | Efficient Model / Reasoning        | Phase 1.1 | planned  | Model/reasoning optimization is independently measured                                           |
@@ -326,7 +327,7 @@ M0.
 ## M2 — Bounded Autonomous Execution
 
 **Phase:** Phase 1.0
-**Status:** ready
+**Status:** complete
 
 ### Outcome
 
@@ -372,6 +373,16 @@ AIRuntimePort invocation count unchanged
 ```
 
 and restart/concurrency cannot bypass the same execution-scope budget.
+
+### Exit evidence
+
+`DEV-008` implemented, verified and merged via PR #11.
+
+Merged revision:
+
+```text
+b2339e15c7f367570c6b9e420359772739c0d50f
+```
 
 ### Intended implementation mapping
 
@@ -1089,20 +1100,30 @@ Current roadmap position:
 ```text
 M0  COMPLETE
 M1  COMPLETE
-M2  READY
+M2  COMPLETE
 ```
 
 Next intended engineering milestone:
 
 ```text
-M2 — Bounded Autonomous Execution
-DEV-008
+M3 — AI Cost Control Baseline
+status: PLANNED
+readiness: pending explicit decision
 ```
 
-The initial Project Control Baseline is established and active:
+The initial Project Control Baseline remains established and active:
 
 ```text
 CTRL-BASELINE-001
 ```
 
-DEV-008 proceeds under CTRL-BASELINE-001.
+M2 / DEV-008 completed under CTRL-BASELINE-001.
+
+DEV-009 subsequently generalized repository change provenance and merged via
+PR #12 at:
+
+```text
+63fc3f2de53631dc1d6e32f3e1600a3cd9623afc
+```
+
+This update does not promote M3 to READY and does not rebaseline the project.

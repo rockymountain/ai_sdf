@@ -21,7 +21,7 @@ project:
     effective_date: "2026-09-21"
   current_revision:
     branch: main
-    sha: f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+    sha: 63fc3f2de53631dc1d6e32f3e1600a3cd9623afc
   lifecycle_target:
     - idea
     - frame
@@ -42,15 +42,15 @@ control_position:
     title: Prove bounded, cost-aware agent execution
     status: in_progress
   latest_completed_milestone:
-    id: M1
-    title: Metered AI Runtime
-  current_milestone:
     id: M2
     title: Bounded Autonomous Execution
-    status: ready
+  current_milestone:
+    id: M3
+    title: AI Cost Control Baseline
+    status: planned
   intended_next_delivery:
-    dev_task: DEV-008
-    status: not_started
+    dev_task: null
+    status: pending_m3_readiness_decision
 
 capacity:
   human_focused:
@@ -79,9 +79,13 @@ milestones:
   M2:
     title: Bounded Autonomous Execution
     phase: phase-1.0
-    status: ready
-    intended_dev:
-      - DEV-008
+    status: complete
+    evidence:
+      dev:
+        - DEV-008
+      verification:
+        - TEST-008
+      merged_revision: b2339e15c7f367570c6b9e420359772739c0d50f
   M3:
     title: AI Cost Control Baseline
     phase: phase-1.1
@@ -162,11 +166,10 @@ scope:
     completed:
       - M0
       - M1
+      - M2
     in_progress: []
-    ready:
-      - M2
+    ready: []
     remaining:
-      - M2
       - M3
       - M4
       - M5
@@ -254,11 +257,6 @@ budget:
     infrastructure:
       coverage: not_measured
   forecast:
-    M2:
-      human_accountable_effort:
-        minimum_focused_hours: 7
-        maximum_focused_hours: 14
-      autonomous_implementation_cycles_maximum: 2
     remaining_phase_1:
       human_accountable_effort:
         minimum_focused_hours: 45
@@ -300,11 +298,10 @@ timeline:
       M1:
         date: "2026-09-21"
         merged_revision: f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+      M2:
+        date: "2026-09-21"
+        merged_revision: b2339e15c7f367570c6b9e420359772739c0d50f
   forecast:
-    M2:
-      earliest: "2026-09-23"
-      latest: "2026-09-25"
-      confidence: medium
     remaining_phase_1:
       earliest: "2026-10-05"
       latest: "2026-10-19"
@@ -314,7 +311,14 @@ timeline:
       latest: null
       confidence: low
   variance:
-    status: no_actual_against_active_forecast_yet
+    status: observed
+    M2:
+      status: completed_before_baseline_window
+      actual_date: "2026-09-21"
+      baseline_earliest: "2026-09-23"
+      baseline_latest: "2026-09-25"
+    remaining_phase_1:
+      status: reforecast_pending
 
 outcome:
   project_north_star:
@@ -326,7 +330,7 @@ outcome:
   capability_state:
     governed_foundation: proven
     metered_ai_runtime: proven
-    bounded_autonomous_execution: not_yet_proven
+    bounded_autonomous_execution: proven
     cost_control_baseline: not_yet_proven
     idea_to_design_ready_factory: not_yet_proven
     runtime_feedback_loop: not_yet_proven
@@ -336,13 +340,13 @@ outcome:
 quality:
   status: pass
   current_baseline:
-    revision: f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+    revision: 63fc3f2de53631dc1d6e32f3e1600a3cd9623afc
     traceability:
       status: pass
-      artifact_count: 34
+      artifact_count: 37
     deterministic_tests:
       status: pass
-      passed: 86
+      passed: 143
       failed: 0
     qg_004:
       status: pass
@@ -360,7 +364,8 @@ governance:
     reverse_change_provenance: active
     canonical_policy_validation: active
     controlled_ai_runtime_boundary: active
-    autonomous_attempt_circuit_breaker: not_yet_active
+    autonomous_attempt_circuit_breaker: active
+    non_task_change_ownership: active
 
 risk:
   overall_status: attention_required
@@ -469,11 +474,6 @@ success_measures:
 
 control_actions:
   next:
-    - id: CTRL-ACTION-001
-      priority: critical
-      action: Begin M2 / DEV-008 under CTRL-BASELINE-001.
-      affects:
-        - M2
     - id: CTRL-ACTION-002
       priority: high
       action: Record prospective human accountable effort from DEV-008 onward.
@@ -494,9 +494,8 @@ control_actions:
         - M6
     - id: CTRL-ACTION-004
       priority: high
-      action: Reforecast M2 and remaining Phase 1 from actual evidence after M2 closes.
+      action: Reforecast remaining Phase 1 from actual evidence after M2 closure.
       affects:
-        - M2
         - M3
         - M4
         - M5
