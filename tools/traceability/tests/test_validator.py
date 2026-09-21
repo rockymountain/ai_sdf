@@ -70,6 +70,30 @@ class ValidatorTests(unittest.TestCase):
             result.errors,
         )
 
+    def test_change_owner_policy_structure_fails_closed(self):
+        malformed = (
+            [],
+            {"": {"id_pattern": "^X$", "allowed_paths": ["control/**"]}},
+            {" ": {"id_pattern": "^X$", "allowed_paths": ["control/**"]}},
+            {"project_control": {"allowed_paths": ["control/**"]}},
+            {"project_control": {"id_pattern": "^X$", "allowed_paths": ["control/**"], "extra": True}},
+            {"project_control": {"id_pattern": "[", "allowed_paths": ["control/**"]}},
+            {"project_control": {"id_pattern": " ", "allowed_paths": ["control/**"]}},
+            {"project_control": {"id_pattern": "^X$", "allowed_paths": []}},
+            {"project_control": {"id_pattern": "^X$", "allowed_paths": [""]}},
+            {"project_control": {"id_pattern": "^X$", "allowed_paths": [" "]}},
+        )
+        for owner_kinds in malformed:
+            with self.subTest(owner_kinds=owner_kinds), self.assertRaises(ValueError):
+                validator.load_change_provenance_policy({
+                    "change_provenance": {
+                        "default": "required",
+                        "exempt_paths": [],
+                        "generated_paths": [],
+                        "owner_kinds": owner_kinds,
+                    }
+                })
+
     def test_max_attempts_policy_rejects_missing_malformed_and_non_integer(self):
         td, repo = copy_repo(); self.addCleanup(td.cleanup)
         path = repo / "constitution/policies.yaml"

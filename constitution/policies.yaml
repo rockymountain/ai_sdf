@@ -70,3 +70,8 @@ change_provenance:
   # CI must continue to run its --check mode before accepting this output.
   generated_paths:
   - AGENTS.md
+  owner_kinds:
+    project_control:
+      id_pattern: '^CTRL-CHANGE-[0-9]{3,}$'
+      allowed_paths:
+      - control/**
