@@ -20,10 +20,10 @@ project:
     path: control/history/CTRL-BASELINE-001.md
     effective_date: "2026-09-21"
   current_revision:
-    branch: main
     tracking: derived
     source: git
-    command: git rev-parse HEAD
+    branch_command: git branch --show-current
+    revision_command: git rev-parse HEAD
   lifecycle_target:
     - idea
     - frame

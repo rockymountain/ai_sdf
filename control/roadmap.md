@@ -175,11 +175,11 @@ Không dùng percentage-complete giả precision cho milestone.
 
 # 5. Current project position
 
-Current repository revision is derived from Git at verification/use time:
+Current repository state is derived from Git at verification/use time:
 
 ```text
 branch:
-  main
+  git branch --show-current
 
 revision:
   git rev-parse HEAD
