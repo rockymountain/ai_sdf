@@ -166,3 +166,36 @@ tasks:
         - design/verification/TEST-007.md
     verification:
       - TEST-007
+
+  DEV-008:
+    level: T2
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - NFR-002
+    design:
+      - CMP-003
+    decisions:
+      - ADR-006
+    implementation:
+      paths:
+        - constitution/policies.yaml
+        - knowledge/schemas/autonomous-execution-policy.schema.json
+        - src/ai_execution/model.py
+        - src/ai_execution/policy.py
+        - src/ai_execution/runtime.py
+        - src/ai_execution/store.py
+        - src/ai_execution/gateway.py
+        - src/ai_execution/execution.py
+        - src/ai_execution/codex_adapter.py
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_ai_execution.py
+        - tools/traceability/tests/test_bounded_execution.py
+        - tools/traceability/tests/test_validator.py
+        - knowledge/traceability.yaml
+        - design/tasks/DEV-008.md
+        - design/verification/TEST-008.md
+        - examples/DEV-008-pr-body.md
+    verification:
+      - TEST-008

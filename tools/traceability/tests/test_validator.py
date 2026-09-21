@@ -49,7 +49,7 @@ class ValidatorTests(unittest.TestCase):
                 if value is None:
                     data.pop("autonomous_execution", None)
                 else:
-                    data["autonomous_execution"] = {"max_invocation_seconds": value}
+                    data["autonomous_execution"]["max_invocation_seconds"] = value
                 path.write_text(yaml.safe_dump(data, sort_keys=False))
                 result, _, _ = self.run_static(repo)
                 self.assertTrue(
@@ -69,6 +69,21 @@ class ValidatorTests(unittest.TestCase):
             any("governed telemetry path" in error for error in result.errors),
             result.errors,
         )
+
+    def test_max_attempts_policy_rejects_missing_malformed_and_non_integer(self):
+        td, repo = copy_repo(); self.addCleanup(td.cleanup)
+        path = repo / "constitution/policies.yaml"
+        original = path.read_text()
+        for value in (None, True, False, 0, -1, 1.5, 2.0, "2", [], {}):
+            with self.subTest(value=value):
+                data = yaml.safe_load(original)
+                if value is None:
+                    del data["autonomous_execution"]["max_attempts"]
+                else:
+                    data["autonomous_execution"]["max_attempts"] = value
+                path.write_text(yaml.safe_dump(data, sort_keys=False))
+                result, _, _ = self.run_static(repo)
+                self.assertTrue(any("max_attempts" in error for error in result.errors), result.errors)
 
     def test_frontmatter_is_identity_not_filename(self):
         td, repo = copy_repo(); self.addCleanup(td.cleanup)

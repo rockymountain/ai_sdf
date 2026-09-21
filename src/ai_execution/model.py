@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from datetime import datetime
 from typing import Any
 
 
@@ -53,6 +54,38 @@ class TerminalReason(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class HumanAuthorization:
+    actor: str
+    timestamp: str
+    reason: str
+    disposition: str
+
+    def __post_init__(self) -> None:
+        for value in (self.actor, self.timestamp, self.reason, self.disposition):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("human authorization requires actor, timestamp, reason, disposition")
+        if datetime.fromisoformat(self.timestamp.replace("Z", "+00:00")).tzinfo is None:
+            raise ValueError("human authorization timestamp requires a timezone")
+
+
+@dataclass(frozen=True, slots=True)
+class CheckpointEvidence:
+    """A retained deterministic check result, supplied by the trusted workflow."""
+
+    command: str
+    exit_code: int
+    evidence_reference: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.command, str) or not self.command.strip():
+            raise ValueError("checkpoint command is required")
+        if type(self.exit_code) is not int:
+            raise ValueError("checkpoint exit_code must be an integer")
+        if not isinstance(self.evidence_reference, str) or not self.evidence_reference.strip():
+            raise ValueError("retained checkpoint evidence reference is required")
+
+
+@dataclass(frozen=True, slots=True)
 class ControlledAIInvocation:
     dev_task: str
     traceability_level: str
@@ -66,6 +99,12 @@ class ControlledAIInvocation:
     requested_model: str | None = None
     requested_reasoning_effort: str | None = None
     routing_policy_version: str | None = None
+    objective_id: str | None = None
+    reservation_id: str | None = None
+    candidate_attempt_number: int | None = None
+    attempt_number: int | None = None
+    resume_of_invocation_id: str | None = None
+    human_authorization: HumanAuthorization | None = None
 
     def __post_init__(self) -> None:
         mandatory = {

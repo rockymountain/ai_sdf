@@ -30,6 +30,9 @@ from .store import TelemetryStore
 class InvocationRejected(RuntimeError):
     """The gateway rejected an invocation before it reached AIRuntimePort."""
 
+    human_attention_required = True
+    autonomous_follow_on_allowed = False
+
 
 @dataclass(frozen=True, slots=True)
 class InvocationOutcome:
@@ -114,7 +117,7 @@ class _Watchdog:
 
 
 class ControlledInvocationGateway:
-    """The only DEV-007 path from governed invocation intent to AI runtime spend."""
+    """The guarded path from governed invocation intent to AI runtime spend."""
 
     def __init__(self, repo: Path, store: TelemetryStore, runtime: AIRuntimePort):
         self.repo = Path(repo)
@@ -138,11 +141,15 @@ class ControlledInvocationGateway:
                 policy.max_invocation_seconds,
                 adapter_name=self.runtime.adapter_name,
                 adapter_version=self.runtime.adapter_version,
+                max_attempts=policy.max_attempts,
             )
         except Exception as exc:
             raise InvocationRejected(f"telemetry start persistence failed: {type(exc).__name__}") from exc
 
-        start_control = RuntimeStartControl()
+        start_control = RuntimeStartControl(
+            (lambda evidence: self.store.record_start_evidence(invocation.reservation_id, evidence))
+            if invocation.invocation_purpose is InvocationPurpose.implementation else None
+        )
         watchdog = _Watchdog(
             policy.max_invocation_seconds,
             self.runtime.interrupt,
@@ -334,7 +341,7 @@ class ControlledInvocationGateway:
         follow_on: bool,
         error_reference: str | None = None,
     ) -> InvocationOutcome:
-        self.store.record_terminal(
+        human_attention = self.store.record_terminal(
             invocation_id,
             status=status,
             reason=reason,
@@ -362,9 +369,7 @@ class ControlledInvocationGateway:
             InvocationPurpose.implementation,
             InvocationPurpose.continuation,
         }:
-            raise InvocationRejected(
-                "DEV-007 does not activate implementation-attempt or continuation capacity"
-            )
+            return CapabilityProfile.implementation()
         return CapabilityProfile.read_only()
 
 
