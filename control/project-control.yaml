@@ -1,0 +1,511 @@
+id: CTRL-PROJECT-001
+kind: project-control
+title: AI-Native Software Design Factory Project Control
+status: active
+version: 1
+owner: factory-maintainer
+last_updated: "2026-09-21"
+
+project:
+  id: ai_sdf
+  mission: >-
+    Turn a raw software idea into a governed, verified and development-ready
+    software design, then remain connected to implementation, runtime evidence,
+    learning and evolution throughout the product lifecycle.
+  roadmap:
+    artifact: CTRL-ROADMAP-001
+    path: control/roadmap.md
+  active_baseline:
+    artifact: CTRL-BASELINE-001
+    path: control/history/CTRL-BASELINE-001.md
+    effective_date: "2026-09-21"
+  current_revision:
+    branch: main
+    sha: f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+  lifecycle_target:
+    - idea
+    - frame
+    - specify
+    - model
+    - decide
+    - design
+    - verify
+    - approve
+    - implement
+    - observe
+    - learn
+    - evolve
+
+control_position:
+  current_phase:
+    id: phase-1
+    title: Prove bounded, cost-aware agent execution
+    status: in_progress
+  latest_completed_milestone:
+    id: M1
+    title: Metered AI Runtime
+  current_milestone:
+    id: M2
+    title: Bounded Autonomous Execution
+    status: ready
+  intended_next_delivery:
+    dev_task: DEV-008
+    status: not_started
+
+capacity:
+  human_focused:
+    committed_hours_per_day: 6
+    target_average_hours_per_day: 8
+    days_per_week: 7
+    committed_hours_per_week: 42
+    target_hours_per_week: 56
+    planning_basis: committed
+
+milestones:
+  M0:
+    title: Governed Foundation
+    phase: phase-0
+    status: complete
+  M1:
+    title: Metered AI Runtime
+    phase: phase-1.0
+    status: complete
+    evidence:
+      dev:
+        - DEV-007
+      verification:
+        - TEST-007
+      merged_revision: f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+  M2:
+    title: Bounded Autonomous Execution
+    phase: phase-1.0
+    status: ready
+    intended_dev:
+      - DEV-008
+  M3:
+    title: AI Cost Control Baseline
+    phase: phase-1.1
+    status: planned
+  M4:
+    title: Efficient Context
+    phase: phase-1.1
+    status: planned
+  M5:
+    title: Efficient Model / Reasoning
+    phase: phase-1.1
+    status: planned
+  M6:
+    title: Proven Bounded Automation
+    phase: phase-1
+    status: planned
+  M7:
+    title: Idea to Design-Ready Factory
+    phase: phase-2
+    status: planned
+  M8:
+    title: Governed Engineering Intelligence
+    phase: phase-2
+    status: planned
+  M9:
+    title: Reality and Runtime Feedback
+    phase: phase-2
+    status: planned
+  M10:
+    title: Closed Evolution Loop
+    phase: phase-2/3
+    status: planned
+  M11:
+    title: Factory Control Plane
+    phase: phase-3
+    status: planned
+  M12:
+    title: Multi-Project / Organization Scale
+    phase: phase-3
+    status: planned
+  H1:
+    title: Living Software Design System
+    phase: horizon
+    status: planned
+  H2:
+    title: Adaptive Factory
+    phase: horizon
+    status: planned
+
+scope:
+  baseline_status: active
+  baseline:
+    id: CTRL-BASELINE-001
+    path: control/history/CTRL-BASELINE-001.md
+    accepted_on: "2026-09-21"
+    basis: CTRL-ROADMAP-001
+    completed:
+      - M0
+      - M1
+    committed_near_term:
+      - M2
+    planned_phase_1:
+      - M3
+      - M4
+      - M5
+      - M6
+    future_product_roadmap:
+      - M7
+      - M8
+      - M9
+      - M10
+      - M11
+      - M12
+    strategic_horizon:
+      - H1
+      - H2
+  actual:
+    completed:
+      - M0
+      - M1
+    in_progress: []
+    ready:
+      - M2
+    remaining:
+      - M2
+      - M3
+      - M4
+      - M5
+      - M6
+      - M7
+      - M8
+      - M9
+      - M10
+      - M11
+      - M12
+      - H1
+      - H2
+  forecast:
+    expected_scope_at_completion:
+      status: unchanged_from_current_roadmap
+    known_scope_changes: []
+  variance:
+    status: none_recorded
+    changes: []
+  confidence: medium
+
+budget:
+  baseline_status: active
+  baseline:
+    id: CTRL-BASELINE-001
+    path: control/history/CTRL-BASELINE-001.md
+    accepted_on: "2026-09-21"
+    human_accountable_effort:
+      M2:
+        minimum_focused_hours: 7
+        maximum_focused_hours: 14
+      remaining_phase_1:
+        minimum_focused_hours: 45
+        maximum_focused_hours: 90
+    interactive_ai_reasoning:
+      historical_coverage: incomplete
+      prospective_measurement: active
+      token_budget: null
+      monetary_budget: null
+    ai_agent_execution:
+      M2:
+        autonomous_implementation_cycles_maximum: 2
+      token_budget: null
+      monetary_budget: null
+    infrastructure:
+      monetary_budget: null
+      measurement_status: not_set
+  actual:
+    project_wide_coverage: incomplete
+    historical:
+      phase_0_through_DEV_006:
+        human_accountable_effort:
+          measurement_status: not_measured
+          qualitative_observation: high
+        interactive_ai_reasoning:
+          measurement_status: not_measured
+          qualitative_observation: high
+        ai_agent_execution:
+          measurement_status: incomplete
+          note: >-
+            Historical missing usage remains unknown and is not inferred as zero.
+      DEV_007:
+        human_accountable_effort:
+          measurement_status: not_measured
+          qualitative_observation: high
+        interactive_ai_reasoning:
+          measurement_status: not_measured
+          qualitative_observation: high
+        controlled_runtime:
+          measurement_status: partially_measured
+          governed_invocation_count: 1
+          exact_governed_invocation_usage:
+            input_tokens: 15183
+            output_tokens: 44
+            total_tokens: 15227
+            cached_input_tokens: 14848
+            reasoning_output_tokens: 0
+          note: >-
+            Exact governed invocation evidence is not claimed to represent total
+            DEV-007 AI delivery cost.
+    human_effort:
+      prospective_measurement: active_from_DEV_008
+    interactive_ai_reasoning:
+      prospective_measurement: active_from_DEV_008
+    infrastructure:
+      coverage: not_measured
+  forecast:
+    M2:
+      human_accountable_effort:
+        minimum_focused_hours: 7
+        maximum_focused_hours: 14
+      autonomous_implementation_cycles_maximum: 2
+    remaining_phase_1:
+      human_accountable_effort:
+        minimum_focused_hours: 45
+        maximum_focused_hours: 90
+    ai_token_budget:
+      status: not_set
+    monetary_budget:
+      status: not_set
+  variance:
+    status: not_yet_computable_for_numeric_ai_or_monetary_budget
+  confidence: medium-low
+
+timeline:
+  baseline_status: active
+  baseline:
+    id: CTRL-BASELINE-001
+    path: control/history/CTRL-BASELINE-001.md
+    accepted_on: "2026-09-21"
+    planning_capacity:
+      committed_hours_per_week: 42
+      target_hours_per_week: 56
+    M2:
+      earliest: "2026-09-23"
+      latest: "2026-09-25"
+      confidence: medium
+    remaining_phase_1:
+      earliest: "2026-10-05"
+      latest: "2026-10-19"
+      confidence: low
+    full_project:
+      earliest: null
+      latest: null
+      confidence: low
+  actual:
+    earliest_documented_factory_delivery_activity: "2026-09-19"
+    milestone_completion:
+      M0:
+        date: "2026-09-19"
+      M1:
+        date: "2026-09-21"
+        merged_revision: f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+  forecast:
+    M2:
+      earliest: "2026-09-23"
+      latest: "2026-09-25"
+      confidence: medium
+    remaining_phase_1:
+      earliest: "2026-10-05"
+      latest: "2026-10-19"
+      confidence: low
+    full_project:
+      earliest: null
+      latest: null
+      confidence: low
+  variance:
+    status: no_actual_against_active_forecast_yet
+
+outcome:
+  project_north_star:
+    status: partially_realized
+    statement: >-
+      A raw software idea can become a governed, verified,
+      development-ready software design and remain linked to implementation,
+      runtime reality, learning and evolution throughout the product lifecycle.
+  capability_state:
+    governed_foundation: proven
+    metered_ai_runtime: proven
+    bounded_autonomous_execution: not_yet_proven
+    cost_control_baseline: not_yet_proven
+    idea_to_design_ready_factory: not_yet_proven
+    runtime_feedback_loop: not_yet_proven
+    closed_evolution_loop: not_yet_proven
+    organization_scale: not_yet_proven
+
+quality:
+  status: pass
+  current_baseline:
+    revision: f269bb29d5f7bc91a677b6ec4d46dedbffc877dd
+    traceability:
+      status: pass
+      artifact_count: 34
+    deterministic_tests:
+      status: pass
+      passed: 86
+      failed: 0
+    qg_004:
+      status: pass
+    agents_reproducibility:
+      status: pass
+  trend:
+    status: insufficient_history_for_control_trend
+
+governance:
+  status: pass
+  controls:
+    deterministic_ci: active
+    human_pr_gate: active
+    t0_t1_t2_traceability: active
+    reverse_change_provenance: active
+    canonical_policy_validation: active
+    controlled_ai_runtime_boundary: active
+    autonomous_attempt_circuit_breaker: not_yet_active
+
+risk:
+  overall_status: attention_required
+  open:
+    - id: RISK-CTRL-001
+      category: human_cognitive_load
+      severity: high
+      statement: >-
+        The Factory still depends heavily on human and interactive AI reasoning
+        for invariant discovery, architecture synthesis and semantic audit.
+      treatment: >-
+        Measure prospectively from DEV-008 and progressively automate
+        low-leverage repeatable reasoning without removing human accountability.
+      affects:
+        - M2
+        - M3
+        - M4
+        - M5
+        - M6
+    - id: RISK-CTRL-002
+      category: interactive_ai_cost_visibility
+      severity: medium
+      statement: >-
+        Interactive AI reasoning resource is not yet fully metered.
+      treatment: >-
+        Begin prospective session/review-cycle measurement and add exact
+        usage/cost metrics when available.
+    - id: RISK-CTRL-003
+      category: timeline
+      severity: medium
+      statement: >-
+        M3-M5 duration depends on measurement windows and experiment outcomes.
+      treatment: >-
+        Maintain range-based forecasts and reforecast from actual throughput.
+      affects:
+        - M3
+        - M4
+        - M5
+        - M6
+    - id: RISK-CTRL-004
+      category: historical_measurement
+      severity: low
+      statement: >-
+        Project-wide Phase-0 AI and human resource usage is incomplete.
+      treatment: >-
+        Preserve unknown history and improve measurement prospectively.
+    - id: RISK-CTRL-005
+      category: optimization
+      severity: high
+      statement: >-
+        Optimizing executor tokens alone can hide high total human/reasoning
+        delivery cost.
+      treatment: >-
+        Track human accountable and low-leverage effort alongside execution-agent
+        economics.
+  accepted: []
+  closed: []
+
+success_measures:
+  delivery:
+    dev_elapsed_lead_time:
+      status: prospective_from_DEV_008
+    milestone_elapsed_lead_time:
+      status: measurable
+    forecast_variance:
+      status: measurable_against_active_baseline
+  human_economics:
+    accountable_hours_per_accepted_dev:
+      status: prospective_from_DEV_008
+    review_audit_hours_per_accepted_dev:
+      status: prospective_from_DEV_008
+    operator_hours_per_accepted_dev:
+      status: prospective_from_DEV_008
+    low_leverage_hours_per_accepted_dev:
+      status: prospective_from_DEV_008
+  interactive_ai_economics:
+    reasoning_review_sessions_per_accepted_dev:
+      status: prospective_from_DEV_008
+    exact_usage_or_cost:
+      status: not_yet_available
+  ai_agent_economics:
+    average_input_tokens_per_accepted_dev:
+      status: not_decision_eligible
+      reason: >-
+        No declared complete comparable measurement window exists yet.
+    total_tokens_per_accepted_dev:
+      status: not_decision_eligible
+    calls_per_accepted_dev:
+      status: prospective
+    attempts_per_accepted_dev:
+      status: prospective
+    acceptance_rate:
+      status: prospective
+  quality:
+    deterministic_regression:
+      status: measurable
+    escaped_design_defects:
+      status: not_yet_measured
+    rework_rate:
+      status: prospective_from_DEV_008
+  lifecycle:
+    runtime_feedback_to_change_lead_time:
+      status: not_yet_measurable
+    design_reality_drift:
+      status: not_yet_measurable
+
+control_actions:
+  next:
+    - id: CTRL-ACTION-001
+      priority: critical
+      action: Begin M2 / DEV-008 under CTRL-BASELINE-001.
+      affects:
+        - M2
+    - id: CTRL-ACTION-002
+      priority: high
+      action: Record prospective human accountable effort from DEV-008 onward.
+      affects:
+        - M2
+        - M3
+        - M4
+        - M5
+        - M6
+    - id: CTRL-ACTION-003
+      priority: high
+      action: Record prospective interactive AI reasoning sessions/review cycles.
+      affects:
+        - M2
+        - M3
+        - M4
+        - M5
+        - M6
+    - id: CTRL-ACTION-004
+      priority: high
+      action: Reforecast M2 and remaining Phase 1 from actual evidence after M2 closes.
+      affects:
+        - M2
+        - M3
+        - M4
+        - M5
+        - M6
+
+history:
+  active_baseline:
+    id: CTRL-BASELINE-001
+    path: control/history/CTRL-BASELINE-001.md
+    effective_date: "2026-09-21"
+  latest_rebaseline: null
+  rebaseline_count: 0
