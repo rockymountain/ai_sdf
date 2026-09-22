@@ -3,10 +3,10 @@ id: CTRL-HANDOFF-PROFILE-CHATGPT-SESSION-001
 kind: handoff-consumer-profile
 title: ChatGPT Conversation Session Handoff Profile
 status: active
-version: 2
+version: 3
 owner: factory-maintainer
 last_updated: 2026-09-22
-change_owner: CTRL-CHANGE-004
+change_owner: CTRL-CHANGE-005
 consumer_kind: chatgpt-conversation
 ---
 
@@ -228,6 +228,19 @@ derivation:
   pruned_count: <integer>
   human_overrides: []
 
+context_acceptance_effect:
+  verifies_live_repository_state: false
+  satisfies_repository_execution_activation: false
+  grants_repository_or_domain_mutation_authority: false
+  creates_implementation_authority: false
+  approves_next_accountable_decision: false
+
+package_completeness_gate:
+  status: PREPARED | READY | NOT_READY
+  run_count: <non-negative-integer>
+  reason: <null-or-stable-reason>
+  human_attention_required: <true|false>
+
 context_treatment_evidence:
   evidence_class: observational_pre_m4
   consumer_profile: CTRL-HANDOFF-PROFILE-CHATGPT-SESSION-001
@@ -245,7 +258,7 @@ context_treatment_evidence:
     input_tokens: <integer-or-unknown>
     output_tokens: <integer-or-unknown>
     total_tokens: <integer-or-unknown>
-  sender_gate_result: READY | NOT_READY | unknown
+  sender_gate_result: PREPARED | READY | NOT_READY
   context_acceptance_result: accepted | rejected | not_run | unknown
   execution_activation_result: activated | rejected | not_run | unknown
   limitations: []
@@ -257,6 +270,18 @@ record the observed value for the actual transfer.
 Unknown timing or usage MUST remain `unknown`, never zero. File counts describe
 source-set shape and MUST NOT be interpreted as token cost, M4 acceptance, or
 context-treatment ROI.
+
+Before the first Package Completeness Gate evaluation, the manifest and packet
+MUST record `package_completeness_gate.status: PREPARED`, `run_count: 0`, and
+mirrored `sender_gate_result: PREPARED`. The direct-file package MUST fail
+`READY` if any `context_acceptance_effect` field is missing, malformed, or
+`true`.
+
+Gate evaluation computes `READY` or `NOT_READY` from the `PREPARED` artifact set
+and increments `run_count` exactly once. It does not require final propagation
+as an input condition. Gate finalization propagates the last authoritative
+evaluation result without incrementing `run_count`; final-state consistency is
+a postcondition, not another gate evaluation.
 
 ## 9. Receiver Bootstrap Instruction contract
 
@@ -369,8 +394,10 @@ Before a ChatGPT session handoff can be `READY`, verify:
 [ ] Receiver capability declaration matches direct-file transport
 [ ] Context Acceptance checks use only Receiver-observable evidence
 [ ] unavailable live checks are deferred to Repository Execution Activation
+[ ] normalized context_acceptance_effect exists and every field is false
 [ ] context_treatment_evidence present and observational_pre_m4 unless a later
     governed M4 experiment explicitly applies
+[ ] package_completeness_gate input artifact set is PREPARED
 [ ] preserve / stop / authority boundaries present
 [ ] known unknowns explicit
 [ ] no secret or convenience credential embedded
@@ -382,6 +409,18 @@ One failed mandatory check means:
 HANDOFF NOT READY
 ```
 
+Gate finalization MUST then propagate the last authoritative evaluation result
+to the retained outputs and mirrored Sender-gate fields without incrementing
+`run_count`. As a finalization postcondition, the retained
+`package_completeness_gate` state MUST be authoritative,
+`context_treatment_evidence.sender_gate_result` MUST match it, and no retained
+output may claim `READY` after an authoritative `NOT_READY` result. This
+postcondition is not another gate evaluation. If consistency cannot be
+established, the authoritative external outcome is `NOT_READY` with reason
+`final_gate_state_propagation_failed`; partially written or stale artifacts are
+invalid intermediate outputs and MUST NOT be transferred or interpreted as a
+final handoff package.
+
 ## 12. Semi-auto readiness proof
 
 This profile becomes proven semi-auto derivation ready only after a real
@@ -392,9 +431,16 @@ Handoff Test #3 exposed the capability mismatch recorded by
 `control/learning/LSN-001.yaml`; its Sender `READY` result is not proof that the
 old Receiver Verification contract was executable.
 
+Handoff Test #4, governed by Handoff Standard v3, exposed the machine-readable
+effect and final gate-state propagation defect recorded by
+`control/learning/LSN-002.yaml`. Its external `NOT_READY` result MUST NOT be
+reinterpreted from the stale `READY` values retained in its ignored package.
+
 Proof under this corrected profile MUST demonstrate both capability-compatible
 Context Acceptance and explicit deferral of live checks to Repository Execution
-Activation. It MUST NOT treat context acceptance as mutation authority.
+Activation. It MUST also demonstrate normalized non-authorizing effects and
+atomic final gate-state consistency. It MUST NOT treat context acceptance as
+mutation authority.
 
 A human MAY review or override a derived source selection.
 

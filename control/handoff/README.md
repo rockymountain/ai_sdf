@@ -3,10 +3,10 @@ id: CTRL-HANDOFF-README-001
 kind: handoff-definition
 title: AI-Native SDF Project Handoff Operating Standard
 status: active
-version: 3
+version: 4
 owner: factory-maintainer
 last_updated: 2026-09-22
-change_owner: CTRL-CHANGE-004
+change_owner: CTRL-CHANGE-005
 ---
 
 # AI-Native SDF Project Handoff Operating Standard
@@ -476,7 +476,16 @@ The Package Completeness Gate MUST verify at least:
 14. unavailable live checks are explicitly deferred to Repository Execution
     Activation;
 15. context treatment evidence is present and correctly classified when a
-    bounded source-pack transport applies.
+    bounded source-pack transport applies;
+16. capability-limited Context Acceptance includes the normalized
+    `context_acceptance_effect` block with every normative field set to `false`;
+17. the artifact set presented for evaluation is in normalized `PREPARED`
+    state.
+
+Package Completeness Gate evaluation checks the `PREPARED` artifact set. It
+MUST NOT require an already-propagated final gate state as an input condition.
+Final gate-state consistency is a postcondition of gate finalization under
+HO-I19, not a check performed against future state during evaluation.
 
 Human review MAY reject a derived package or approve an explicit substitution.
 Any human substitution, addition, or removal that changes the derived source
@@ -531,11 +540,95 @@ A successful Context Acceptance Gate:
 - does NOT authorize repository or domain mutation;
 - does NOT create implementation authority.
 
+For capability-limited Context Acceptance, the following machine-readable block
+is required and normative:
+
+```yaml
+context_acceptance_effect:
+  verifies_live_repository_state: false
+  satisfies_repository_execution_activation: false
+  grants_repository_or_domain_mutation_authority: false
+  creates_implementation_authority: false
+  approves_next_accountable_decision: false
+```
+
+The field names and boolean meanings are fixed. Prose MAY explain the contract,
+but MUST NOT substitute for it. A direct-file conversation handoff MUST fail
+`READY` if the block is missing, malformed, or contains `true` for any field.
+
 Before repository/domain mutation, a repository-capable actor MUST pass the
 Repository Execution Activation Gate. Both gates fail closed. Each applicable
 gate retains the two-pass maximum and one-clarification maximum; separating the
 gates MUST NOT create an unbounded retry path or replenish another governed
 budget.
+
+## HO-I19 — Gate Result Authority
+
+Before the first Package Completeness Gate evaluation, every derived output
+MUST record:
+
+```yaml
+package_completeness_gate:
+  status: PREPARED
+  run_count: 0
+  reason: null
+  human_attention_required: false
+```
+
+`PREPARED` is not `READY` and MUST NOT be transferred as `HANDOFF READY`.
+
+Each Package Completeness Gate evaluation MUST evaluate a `PREPARED` artifact
+set, compute `READY` or `NOT_READY`, and increment
+`package_completeness_gate.run_count` exactly once. The evaluation MUST NOT
+require its computed result to have already been propagated into the artifact
+set.
+
+Exactly one authoritative final Sender-gate result governs the final derived
+package:
+
+```text
+READY
+NOT_READY
+```
+
+The result computed by an evaluation MUST record:
+
+```yaml
+package_completeness_gate:
+  status: READY | NOT_READY
+  run_count: <positive-integer>
+  reason: <null-or-stable-reason>
+  human_attention_required: <true|false>
+```
+
+For a derivation with one gate evaluation, `run_count` MUST be `1`. If an
+explicit human override requires another governed evaluation, the corrected
+artifact set MUST be presented again as `PREPARED`, retain the completed
+evaluation count, and increment that count exactly once during re-evaluation.
+Only the last evaluation result is authoritative.
+
+Gate finalization MUST propagate the last authoritative evaluation result to
+the final retained handoff output set and every mirrored Sender-gate field. Gate
+finalization is part of finalizing that evaluation; it is not another Package
+Completeness Gate evaluation and MUST NOT increment `run_count`.
+
+If the authoritative evaluation result is `NOT_READY`, successful finalization
+MUST record `NOT_READY`, the stable failure reason, and the applicable
+human-attention state throughout the retained output set. Any mirrored
+Sender-gate status in the handoff packet, Source Manifest, or
+`context_treatment_evidence.sender_gate_result` MUST equal
+`package_completeness_gate.status` in every successfully finalized output.
+
+Final-state consistency is a postcondition of gate finalization. The externally
+reported result and all final retained artifacts MUST agree before transfer. If
+that consistency cannot be established, the authoritative external outcome is
+`NOT_READY` with reason `final_gate_state_propagation_failed`, and the artifact
+set MUST NOT be transferred. Partially written or stale artifacts are invalid
+intermediate outputs and MUST NOT be interpreted as a final handoff package;
+the external outcome does not imply that every stale file was rewritten.
+
+A failed gate evaluation or gate finalization is evidence. It is not permission
+to rewrite semantics merely to make a matcher pass.
 
 # 6. Handoff Types
 
@@ -1472,10 +1565,12 @@ Before transfer, the Sender MUST confirm:
   transport capabilities;
 - live-state checks unavailable to the Receiver are assigned to Repository
   Execution Activation;
+- normalized `context_acceptance_effect` is present and non-authorizing;
 - all profile-required outputs exist;
 - the Source Manifest includes `P0`–`P6` labels for represented sources;
 - any pruning is visible with reason and context-loss evidence;
 - no mandatory source is silently pruned;
+- the authoritative final gate state and every mirrored Sender-gate field agree;
 - the Package Completeness Gate passes.
 
 If these conditions fail:
@@ -1669,6 +1764,12 @@ A handoff is READY only when all applicable checks below pass:
 
 [ ] Context Acceptance does not imply Repository Execution Activation or
     mutation authority
+
+[ ] normalized context_acceptance_effect present with all fields false
+
+[ ] final package_completeness_gate state propagated atomically
+
+[ ] no artifact or mirrored field contradicts the authoritative final gate result
 
 [ ] Package Completeness Gate passed
 ```
@@ -2321,6 +2422,19 @@ derivation:
   selected_count: <integer>
   pruned_count: <integer>
   human_overrides: []
+
+context_acceptance_effect:
+  verifies_live_repository_state: false
+  satisfies_repository_execution_activation: false
+  grants_repository_or_domain_mutation_authority: false
+  creates_implementation_authority: false
+  approves_next_accountable_decision: false
+
+package_completeness_gate:
+  status: PREPARED | READY | NOT_READY
+  run_count: <non-negative-integer>
+  reason: <null-or-stable-reason>
+  human_attention_required: <true|false>
 ```
 
 Repository sources MUST use repository-relative forward-slash paths.
@@ -2362,7 +2476,7 @@ context_treatment_evidence:
     input_tokens: <integer-or-unknown>
     output_tokens: <integer-or-unknown>
     total_tokens: <integer-or-unknown>
-  sender_gate_result: READY | NOT_READY | unknown
+  sender_gate_result: PREPARED | READY | NOT_READY
   context_acceptance_result: accepted | rejected | not_run | unknown
   execution_activation_result: activated | rejected | not_run | unknown
   limitations: []
@@ -2382,6 +2496,11 @@ to claim context efficiency, cost reduction, treatment acceptance, or ROI.
 This evidence contract prepares comparable observations. It does not change the
 M3 → M4 dependency, start M4, establish an experimental baseline, or prove M4
 acceptance/ROI.
+
+`context_treatment_evidence.sender_gate_result` is a mirror, not independent
+authority. In every retained output it MUST equal
+`package_completeness_gate.status`. Unknown usage or timing remains `unknown`,
+but final Sender-gate state MUST NOT be `unknown`.
 
 # 36. Semi-Auto Derivation Process
 
@@ -2407,7 +2526,9 @@ following logical process before declaring the package `READY`:
         ↓
 9. Select/prune under consumer constraints
         ↓
-10. Generate Source Manifest, including prune log and context treatment evidence
+10. Generate PREPARED Source Manifest and packet state, including prune log,
+    normalized effect, context treatment evidence, and
+    package_completeness_gate status PREPARED / run_count 0
         ↓
 11. Generate handoff packet
         ↓
@@ -2415,19 +2536,36 @@ following logical process before declaring the package `READY`:
         ↓
 13. Generate Context Acceptance and Execution Activation contracts
         ↓
-14. Run Package Completeness Gate
+14. Evaluate the PREPARED artifact set with the Package Completeness Gate,
+    compute READY or NOT_READY, and increment run_count exactly once
         ↓
-15. Human review / explicit override if needed
+15. Optional human review / explicit override when applicable
         ↓
-16. Re-run Package Completeness Gate after override
+16. Governed re-evaluation after an override when applicable, with exactly one
+    additional run_count increment
         ↓
-17. Declare READY
+17. Finalize the last authoritative evaluation by propagating its result to the
+    final retained output set and every mirrored Sender-gate field, without
+    incrementing run_count
+        ↓
+18. Establish finalization consistency as a postcondition, without another gate
+    evaluation or run_count increment
+        ↓
+19. Transfer only when the final authoritative state is READY
 ```
 
 The Sender MUST NOT skip Source Manifest generation merely because the handoff
 packet already names some files.
 
 The Sender MUST NOT declare `READY` before the Package Completeness Gate passes.
+
+The gate evaluates the `PREPARED` package and does not verify future propagated
+state. Gate finalization then applies the last authoritative evaluation result,
+and the finalization consistency postcondition verifies the retained output set.
+Finalization and its consistency postcondition are not additional gate
+evaluations and MUST NOT increment `run_count`. A `PREPARED`, partially written,
+stale, or inconsistently finalized artifact set is intermediate derivation
+state, not a transferable handoff package.
 
 # 37. Derivation Failure States
 
@@ -2445,6 +2583,8 @@ authority_boundary_missing
 known_state_contradiction
 receiver_capability_mismatch
 context_treatment_evidence_missing
+context_acceptance_effect_missing_or_incompatible
+final_gate_state_inconsistent
 ```
 
 A derivation failure is not permission to fabricate, compress away, or silently
@@ -2472,6 +2612,9 @@ It MUST be proven through at least one real handoff in which:
 [ ] mandatory checks match declared Receiver/transport capabilities
 [ ] unavailable live checks are deferred to Repository Execution Activation
 [ ] context treatment evidence is present and honestly classified
+[ ] normalized context_acceptance_effect exists and every normative field is false
+[ ] package_completeness_gate is normalized and post-gate
+[ ] all mirrored Sender-gate fields equal the authoritative final gate status
 [ ] human does not have to identify a missing mandatory package component
 [ ] Package Completeness Gate passes before READY
 [ ] Receiver can execute the Context Acceptance protocol from the package
@@ -2482,12 +2625,15 @@ A failed real handoff MAY be used as dogfood evidence to refine the standard.
 Failure does not justify weakening the gate.
 
 Historical Handoff Test #3 was governed by the pre-correction v2 derivation
-contract. Its evidence remains interpretable under v2; corrected derivations use
-the current v3 contract.
+contract. Its evidence remains interpretable under v2.
 
-# 39. v3 Explicit Non-Effects
+Historical Handoff Test #4 was governed by v3. It exposed the machine-readable
+Context Acceptance assertion and final gate-state propagation defect recorded by
+`control/learning/LSN-002.yaml`. Corrected future derivations use v4.
 
-This v3 standard:
+# 39. v4 Explicit Non-Effects
+
+This v4 standard:
 
 - does NOT change `CTRL-BASELINE-001`;
 - does NOT change `CTRL-ROADMAP-001` v2;
