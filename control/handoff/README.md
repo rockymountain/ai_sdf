@@ -3,9 +3,10 @@ id: CTRL-HANDOFF-README-001
 kind: handoff-definition
 title: AI-Native SDF Project Handoff Operating Standard
 status: active
-version: 2
+version: 3
 owner: factory-maintainer
-last_updated: 2026-09-21
+last_updated: 2026-09-22
+change_owner: CTRL-CHANGE-004
 ---
 
 # AI-Native SDF Project Handoff Operating Standard
@@ -440,6 +441,8 @@ The derived bootstrap instruction MUST establish, at minimum:
 - semantics of the attached/available source set;
 - Receiver Verification gate;
 - expected source/workspace/control state when known;
+- which state is Receiver-observable and which checks are deferred to Repository
+  Execution Activation;
 - preserve conditions;
 - stop conditions;
 - authority boundary;
@@ -468,12 +471,71 @@ The Package Completeness Gate MUST verify at least:
 9. Receiver Verification contract is present;
 10. preserve, stop, and authority boundaries are present;
 11. known unknowns remain explicit;
-12. secrets or convenience credentials are not embedded in the package.
+12. secrets or convenience credentials are not embedded in the package;
+13. mandatory checks are compatible with Receiver/transport capabilities;
+14. unavailable live checks are explicitly deferred to Repository Execution
+    Activation;
+15. context treatment evidence is present and correctly classified when a
+    bounded source-pack transport applies.
 
 Human review MAY reject a derived package or approve an explicit substitution.
 Any human substitution, addition, or removal that changes the derived source
 set MUST be recorded as an override with a reason. Human review MUST NOT erase
 the original derivation/prune evidence.
+
+## HO-I18 — Receiver Capability Compatibility
+
+A handoff MUST NOT be declared `READY` when mandatory Receiver verification
+requires a capability unavailable under the declared Consumer Profile and
+transport.
+
+The Sender MUST classify every mandatory verification check as one of:
+
+```text
+receiver-observable
+execution-activation-only
+```
+
+A direct-file conversation Receiver MAY verify only evidence actually available
+in the transferred source pack and conversation. Sender claims about Git,
+workspace, runtime, or protected-system state are not Receiver-observable merely
+because they appear in the handoff packet.
+
+For a transport without live repository/runtime capability, verification MUST be
+separated into:
+
+```text
+Context Acceptance Gate
+  verifies the transferred packet, manifest, attached canonical evidence,
+  internal consistency, authority boundary, omissions, and declared unknowns
+
+Repository Execution Activation Gate
+  verifies live Git, workspace, runtime, and current-control state in an
+  environment that actually exposes those capabilities
+```
+
+The Context Acceptance Gate MUST identify every material live-state claim that
+it cannot observe and defer that claim explicitly to Repository Execution
+Activation. It MUST NOT report a deferred claim as verified.
+
+Sender prose, screenshots, copied command output, or an asserted check result
+MUST NOT substitute for Receiver-observable evidence. They MAY be transferred as
+claims or supporting evidence with provenance, but their verification status
+must remain explicit.
+
+A successful Context Acceptance Gate:
+
+- establishes that the bounded context package is acceptable for reconstruction;
+- does NOT prove current repository/workspace/runtime state;
+- does NOT satisfy Repository Execution Activation;
+- does NOT authorize repository or domain mutation;
+- does NOT create implementation authority.
+
+Before repository/domain mutation, a repository-capable actor MUST pass the
+Repository Execution Activation Gate. Both gates fail closed. Each applicable
+gate retains the two-pass maximum and one-clarification maximum; separating the
+gates MUST NOT create an unbounded retry path or replenish another governed
+budget.
 
 # 6. Handoff Types
 
@@ -508,7 +570,8 @@ If the working tree is dirty:
 - dirty state MUST be explicitly acknowledged;
 - unrelated changes MUST be identified when material;
 - destructive Git cleanup MUST NOT be inferred as permitted;
-- the Receiver MUST verify actual workspace state before mutation.
+- a repository-capable activation actor MUST verify actual workspace state
+  before mutation.
 
 Type A SHOULD avoid creating a durable snapshot unless:
 
@@ -575,8 +638,9 @@ A Type C handoff MUST NOT proceed from a dirty working tree.
 
 ## 7.1 Verification Commands
 
-When Git is the relevant versioning system, Receiver verification MUST include
-the functional equivalent of:
+When Git is the relevant versioning system and the verifying actor has live
+repository capability, Repository Execution Activation MUST include the
+functional equivalent of:
 
 ```text
 git branch --show-current
@@ -589,6 +653,12 @@ Additional checks MAY be required by the current task.
 The protocol does not require one particular shell syntax.
 
 The observed facts are what matter.
+
+A Consumer Profile using a transport without live repository capability MUST
+NOT require its conversation Receiver to execute these commands. The Context
+Acceptance Gate MUST instead mark branch, revision, and workspace checks as
+`execution-activation-only`. A repository-capable actor MUST execute them before
+repository/domain mutation.
 
 ## 7.2 Clean State
 
@@ -752,7 +822,8 @@ reconstruct project context in this order:
 7. relevant latest CTRL-SNAPSHOT-* when one exists
 8. AGENTS.md
 9. current DEV/work item and directly linked design/ADR/TEST artifacts
-10. Git state and relevant implementation evidence
+10. Git state and relevant implementation evidence when available to the
+    Receiver, otherwise at Repository Execution Activation
 ```
 
 The Receiver SHOULD then read additional source only as needed.
@@ -767,6 +838,15 @@ Context acquisition SHOULD remain relevance-driven.
 A Receiver MUST independently verify material handoff claims.
 
 The Receiver MUST NOT treat Sender prose as proof.
+
+Verification scope MUST be limited to capabilities declared by the Consumer
+Profile and transport. The Receiver MUST distinguish:
+
+```text
+observed from transferred evidence
+asserted by Sender but not independently observable
+deferred to Repository Execution Activation
+```
 
 At minimum the Receiver MUST compare:
 
@@ -789,14 +869,24 @@ Material comparisons include, where applicable:
 - relevant quality/verification state;
 - declared preserve/do-not-touch state.
 
-If a material mismatch exists:
+For a direct-file conversation Receiver, `where applicable` means evidence
+available in the attached source pack. Branch, live revision, working-tree state,
+runtime state, and path preservation are not verified by that Receiver unless
+the declared transport actually exposes those capabilities.
+
+Unobservable live-state claims MUST be listed as deferred checks. Deferral is
+not mismatch and is not verification. The handoff MUST fail `READY` if its
+verification contract requires the incapable Receiver to perform those checks
+instead of deferring them to Repository Execution Activation.
+
+If a material mismatch exists within the applicable gate:
 
 ```text
 verification_result = rejected
 ```
 
-The Receiver MUST NOT continue project/domain mutation as though verification
-passed.
+The Receiver MUST NOT continue as though that gate passed. Context acceptance
+alone MUST NOT permit project/domain mutation.
 
 # 11. Verification Evidence Contract
 
@@ -805,13 +895,20 @@ passed.
 A Receiver verification record MUST contain enough evidence to reconstruct the
 gate decision.
 
-A recommended structure is:
+A recommended capability-aware structure is:
 
 ```yaml
 receiver_verification:
+  gate: context_acceptance
   verification_pass: 1
-  receiver_role: executor
+  receiver_role: conversation-receiver
   verified_at: "2026-09-21T12:30:00+07:00"
+
+  capabilities:
+    attached_source_read: true
+    live_repository: false
+    live_workspace: false
+    runtime_access: false
 
   expected:
     source_revision: "<full-sha>"
@@ -819,27 +916,21 @@ receiver_verification:
     current_milestone: M2
 
   observed:
-    source_revision: "<full-sha>"
-    working_tree_clean: true
     active_baseline: CTRL-BASELINE-001
     current_milestone: M2
 
   checks:
-    - check: branch
-      command: git branch --show-current
+    - check: attached-source-consistency
       result: pass
 
-    - check: revision
-      command: git rev-parse HEAD
-      result: pass
-
-    - check: working_tree
-      command: git status --porcelain=v1
-      result: pass
+  deferred_to_execution_activation:
+    - branch
+    - source_revision
+    - working_tree
 
   mismatches: []
 
-  result: accepted
+  result: context_accepted
   clarification_count: 0
   human_attention_required: false
 ```
@@ -847,6 +938,10 @@ receiver_verification:
 The exact schema MAY evolve.
 
 The semantics MUST remain equivalent.
+
+Repository Execution Activation evidence MUST use the same precision rules and
+record the live commands or equivalent observations actually executed by the
+repository-capable actor.
 
 ## 11.2 Evidence Precision
 
@@ -876,8 +971,12 @@ domain mutation resumes.
 
 ## 11.4 Verification Evidence Is Not Authority
 
-A successful verification record proves that the handoff claims matched the
-observed state at verification time.
+A successful Context Acceptance record proves only that Receiver-observable
+handoff claims matched the transferred evidence at verification time.
+
+A successful Repository Execution Activation record proves that the applicable
+live-state claims matched state directly observed by the activation actor. One
+record MUST NOT be substituted for the other.
 
 It does NOT:
 
@@ -931,6 +1030,12 @@ VERIFY_PASS_1
                 ↓
                STOP
 ```
+
+For a capability-limited transport, this state machine applies to the Context
+Acceptance Gate. A later Repository Execution Activation Gate MUST use the same
+bounded pattern before mutation. Passing one gate does not consume, reset, or
+waive the other gate, and neither gate may exceed two passes or one clarification
+cycle.
 
 ## 12.2 Pass Budget
 
@@ -1216,6 +1321,11 @@ Unknowns MUST NOT be hidden merely to make the handoff appear complete.
 The packet MUST define or reference the checks the Receiver is expected to
 execute.
 
+Those checks MUST be compatible with the capabilities declared by the Consumer
+Profile and transport. Checks that require live repository, workspace, runtime,
+network, or protected-system access unavailable to the Receiver MUST be marked
+for Repository Execution Activation, not presented as Receiver-executable.
+
 For Type C, this procedure MUST include proof-of-verification persistence.
 
 # 14. Authority Transfer Rule
@@ -1261,17 +1371,16 @@ STOP
 
 and request accountable clarification.
 
-# 15. Pre-Acceptance Mutation Boundary
+# 15. Pre-Acceptance and Pre-Activation Mutation Boundary
 
-Before a handoff is accepted, the Receiver MAY:
+Before context is accepted, a capability-limited Receiver MAY:
 
-- read repository state;
-- inspect canonical evidence;
-- execute non-mutating verification;
-- inspect runtime/control evidence;
+- read transferred source-pack evidence;
+- inspect canonical/control evidence present in that pack;
+- execute non-mutating checks supported by its declared capabilities;
 - write required handoff verification evidence.
 
-Before acceptance, the Receiver MUST NOT:
+Before context acceptance, the Receiver MUST NOT:
 
 - implement code;
 - modify design;
@@ -1285,6 +1394,11 @@ Before acceptance, the Receiver MUST NOT:
 
 Verification evidence recording is the only protocol-required write permitted
 before acceptance.
+
+After context acceptance but before Repository Execution Activation, a
+repository-capable actor MAY perform non-mutating live checks and write required
+activation evidence. It MUST NOT perform repository/domain mutation until the
+activation gate passes and a separate authority check confirms permission.
 
 # 16. Handoff Lifecycle
 
@@ -1305,10 +1419,16 @@ HANDOFF READY?
           ↓
       RECEIVER RECONSTRUCT
           ↓
-      VERIFY PASS 1
+      CONTEXT ACCEPTANCE PASS 1
           ├── PASS
           │     ↓
-          │   ACCEPT
+          │   CONTEXT ACCEPTED
+          │     ↓
+          │   REPOSITORY EXECUTION REQUESTED?
+          │     ├── NO → DECISION/CONTEXT USE WITHIN AUTHORITY
+          │     └── YES
+          │     ↓
+          │   EXECUTION ACTIVATION GATE
           │     ↓
           │   AUTHORITY CHECK
           │     ↓
@@ -1318,14 +1438,11 @@ HANDOFF READY?
                 ↓
           ONE CLARIFICATION
                 ↓
-          VERIFY PASS 2
+          CONTEXT ACCEPTANCE PASS 2
                 ├── PASS
                 │     ↓
-                │   ACCEPT
-                │     ↓
-                │   AUTHORITY CHECK
-                │     ↓
-                │   RESUME
+                │   CONTEXT ACCEPTED → FOLLOW THE SAME
+                │   EXECUTION-REQUEST / ACTIVATION / AUTHORITY PATH
                 │
                 └── REJECT
                       ↓
@@ -1351,6 +1468,10 @@ Before transfer, the Sender MUST confirm:
 - known blockers/risks are disclosed;
 - Receiver verification procedure exists;
 - when a supported Consumer Profile applies, the Consumer Profile is resolved;
+- mandatory verification checks are compatible with declared Receiver and
+  transport capabilities;
+- live-state checks unavailable to the Receiver are assigned to Repository
+  Execution Activation;
 - all profile-required outputs exist;
 - the Source Manifest includes `P0`–`P6` labels for represented sources;
 - any pruning is visible with reason and context-loss evidence;
@@ -1399,11 +1520,16 @@ status: prepared
 
 ## 18.2 Accepted
 
-After successful Receiver verification and persisted verification evidence:
+After successful verification at the applicable gate and persisted verification
+evidence:
 
 ```yaml
 status: accepted
 ```
+
+The record MUST identify whether acceptance means `context_accepted` or
+`execution_activated`. An unqualified accepted status MUST NOT be used to imply
+that both gates passed.
 
 An accepted snapshot becomes durable historical evidence.
 
@@ -1514,6 +1640,11 @@ A handoff is READY only when all applicable checks below pass:
 
 [ ] receiver verification procedure defined
 
+[ ] Receiver/transport capabilities explicit
+
+[ ] mandatory verification checks are Receiver-executable or explicitly
+    deferred to Repository Execution Activation
+
 [ ] verification evidence location defined where required
 
 [ ] verification pass budget = 2
@@ -1536,6 +1667,9 @@ A handoff is READY only when all applicable checks below pass:
 
 [ ] Receiver Bootstrap Instruction complete
 
+[ ] Context Acceptance does not imply Repository Execution Activation or
+    mutation authority
+
 [ ] Package Completeness Gate passed
 ```
 
@@ -1545,16 +1679,20 @@ One failed mandatory check means:
 HANDOFF NOT READY
 ```
 
-# 20. Receiver Acceptance Gate
+# 20. Context Acceptance and Repository Execution Activation
 
-Before resuming transferred work, the Receiver MUST be able to answer:
+## 20.1 Context Acceptance Gate
+
+Before accepting transferred context, the Receiver MUST be able to answer from
+evidence it can actually observe:
 
 ```text
 1. What outcome is the project currently pursuing?
 
 2. What active project baseline governs the current work?
 
-3. What repository revision and workspace state am I actually observing?
+3. What source revision and workspace state does the package claim, and which
+   parts can I independently observe?
 
 4. What phase and milestone is the project currently in?
 
@@ -1565,6 +1703,52 @@ Before resuming transferred work, the Receiver MUST be able to answer:
 7. What am I authorized to do now, and what am I not authorized to do?
 ```
 
+The Receiver MUST also identify:
+
+```text
+8. Which live-state checks are deferred to Repository Execution Activation?
+```
+
+For a direct-file source-pack Receiver, successful context acceptance means:
+
+```text
+CONTEXT ACCEPTED
+```
+
+It does not mean `HANDOFF CLAIM == LIVE REPOSITORY STATE` and does not authorize
+repository/domain mutation.
+
+If a material claim within the Receiver-observable context cannot be verified:
+
+```text
+CONTEXT REJECTED
+```
+
+not:
+
+```text
+probably correct
+close enough
+likely intended
+```
+
+## 20.2 Repository Execution Activation Gate
+
+Before repository/domain mutation, an actor with live repository/workspace
+capability MUST establish:
+
+```text
+HANDOFF CLAIM == OBSERVED LIVE STATE
+```
+
+for all material execution-relevant claims, including branch, full revision,
+workspace state, current control state, preserve/do-not-touch state, and relevant
+runtime evidence.
+
+The activation actor MUST execute the applicable checks directly. Context
+acceptance, Sender prose, or copied command output MUST NOT stand in for live
+observation.
+
 For a durable handoff, the Receiver MUST additionally prove:
 
 ```text
@@ -1573,7 +1757,7 @@ HANDOFF CLAIM == OBSERVED STATE
 
 for all material transfer claims.
 
-If a material claim cannot be verified:
+If a material execution-relevant claim cannot be verified:
 
 ```text
 REJECT
@@ -1587,7 +1771,15 @@ close enough
 likely intended
 ```
 
+Passing Repository Execution Activation still does not create execution
+authority. The actor MUST perform the separate authority check before mutation.
+
 # 21. Staleness and Mismatch Handling
+
+The rules in this section apply at the gate where the relevant evidence is
+observable. A direct-file Receiver handles attached-evidence conflicts during
+Context Acceptance; live revision and workspace mismatches are handled by the
+repository-capable actor during Repository Execution Activation.
 
 ## 21.1 Stale Control State
 
@@ -1596,7 +1788,8 @@ legitimately advanced after the snapshot:
 
 - the snapshot remains historical evidence;
 - `control/project-control.yaml` remains current delivery-control authority;
-- Receiver MUST determine whether the old snapshot is still applicable.
+- the verifying actor at the applicable gate MUST determine whether the old
+  snapshot is still applicable.
 
 The snapshot MUST NOT overwrite newer current state.
 
@@ -1608,8 +1801,9 @@ If observed revision differs materially from the handoff claim:
 REJECT
 ```
 
-The Receiver MUST NOT reset, checkout, restore, or otherwise force the
-repository to match the handoff unless separately authorized.
+The Repository Execution Activation actor MUST NOT reset, checkout, restore, or
+otherwise force the repository to match the handoff unless separately
+authorized.
 
 Mismatch discovery is evidence.
 
@@ -1625,8 +1819,8 @@ observed dirty state
 REJECT
 ```
 
-The Receiver MUST NOT clean the workspace automatically merely to make
-verification pass.
+The Repository Execution Activation actor MUST NOT clean the workspace
+automatically merely to make verification pass.
 
 The dirty state may contain valuable untransferred work.
 
@@ -2000,6 +2194,15 @@ profile_id: <stable-id>
 consumer_kind: <receiver-class>
 status: active | experimental | retired
 
+transport:
+  mode: <transport-mode>
+
+receiver_capabilities:
+  attached_source_read: true | false
+  live_repository: true | false
+  live_workspace: true | false
+  runtime_access: true | false
+
 context_constraints:
   max_source_files: <integer-or-null>
 
@@ -2014,6 +2217,11 @@ source_selection_policy:
   priority_model: P0-P6
 
 receiver_verification:
+  max_passes: 2
+  max_clarification_cycles: 1
+
+repository_execution_activation:
+  required_before_repository_or_domain_mutation: true | false
   max_passes: 2
   max_clarification_cycles: 1
 ```
@@ -2131,6 +2339,50 @@ human_overrides:
 
 The generated prune history MUST remain visible after the override.
 
+## 35.1 Context Treatment Evidence Contract
+
+Every bounded source-pack derivation MUST include a minimal
+`context_treatment_evidence` record in the Source Manifest or handoff packet:
+
+```yaml
+context_treatment_evidence:
+  evidence_class: observational_pre_m4 | controlled_m4_experiment
+  consumer_profile: <profile-id>
+  transport_mode: <transport-mode>
+  treatment_id: <stable-treatment-id>
+  source_revision: <full-sha-or-unknown>
+  context_strategy: chat-heavy | manual-context-pack | graphify-context-pack | other
+  candidate_count: <integer-or-unknown>
+  selected_count: <integer-or-unknown>
+  pruned_count: <integer-or-unknown>
+  derivation_started_at: <timestamp-or-unknown>
+  derivation_finished_at: <timestamp-or-unknown>
+  wall_clock_duration: <duration-or-unknown>
+  usage:
+    input_tokens: <integer-or-unknown>
+    output_tokens: <integer-or-unknown>
+    total_tokens: <integer-or-unknown>
+  sender_gate_result: READY | NOT_READY | unknown
+  context_acceptance_result: accepted | rejected | not_run | unknown
+  execution_activation_result: activated | rejected | not_run | unknown
+  limitations: []
+```
+
+Until M4 is explicitly authorized and a controlled experiment is declared,
+source-pack handoff evidence MUST use:
+
+```text
+evidence_class: observational_pre_m4
+```
+
+Unknown time or usage evidence MUST remain `unknown`, never zero. File counts
+describe source-set shape; they are not token-cost proxies and MUST NOT be used
+to claim context efficiency, cost reduction, treatment acceptance, or ROI.
+
+This evidence contract prepares comparable observations. It does not change the
+M3 → M4 dependency, start M4, establish an experimental baseline, or prove M4
+acceptance/ROI.
+
 # 36. Semi-Auto Derivation Process
 
 For a handoff using a supported Consumer Profile, the Sender MUST execute the
@@ -2141,33 +2393,35 @@ following logical process before declaring the package `READY`:
         ↓
 2. Resolve Consumer Profile
         ↓
-3. Capture repository/control/workspace state
+3. Resolve Receiver and transport capabilities
         ↓
-4. Resolve current work, locked state, authority, and known unknowns
+4. Capture repository/control/workspace state
         ↓
-5. Derive candidate source set
+5. Resolve current work, locked state, authority, and known unknowns
         ↓
-6. Mark mandatory sources
+6. Derive candidate source set
         ↓
-7. Assign P0–P6 priority to every candidate
+7. Mark mandatory sources
         ↓
-8. Select/prune under consumer constraints
+8. Assign P0–P6 priority to every candidate
         ↓
-9. Generate Source Manifest, including prune log
+9. Select/prune under consumer constraints
         ↓
-10. Generate handoff packet
+10. Generate Source Manifest, including prune log and context treatment evidence
         ↓
-11. Generate Receiver Bootstrap Instruction
+11. Generate handoff packet
         ↓
-12. Generate Receiver Verification contract
+12. Generate capability-compatible Receiver Bootstrap Instruction
         ↓
-13. Run Package Completeness Gate
+13. Generate Context Acceptance and Execution Activation contracts
         ↓
-14. Human review / explicit override if needed
+14. Run Package Completeness Gate
         ↓
-15. Re-run Package Completeness Gate after override
+15. Human review / explicit override if needed
         ↓
-16. Declare READY
+16. Re-run Package Completeness Gate after override
+        ↓
+17. Declare READY
 ```
 
 The Sender MUST NOT skip Source Manifest generation merely because the handoff
@@ -2189,6 +2443,8 @@ bootstrap_instruction_incomplete
 verification_contract_missing
 authority_boundary_missing
 known_state_contradiction
+receiver_capability_mismatch
+context_treatment_evidence_missing
 ```
 
 A derivation failure is not permission to fabricate, compress away, or silently
@@ -2213,20 +2469,25 @@ It MUST be proven through at least one real handoff in which:
 [ ] all pruning is visible with reasons/context loss
 [ ] Receiver Bootstrap Instruction is generated
 [ ] Receiver Verification contract is generated
+[ ] mandatory checks match declared Receiver/transport capabilities
+[ ] unavailable live checks are deferred to Repository Execution Activation
+[ ] context treatment evidence is present and honestly classified
 [ ] human does not have to identify a missing mandatory package component
 [ ] Package Completeness Gate passes before READY
-[ ] Receiver can execute the verification protocol from the package
+[ ] Receiver can execute the Context Acceptance protocol from the package
+[ ] Repository Execution Activation is explicit when live mutation may follow
 ```
 
 A failed real handoff MAY be used as dogfood evidence to refine the standard.
 Failure does not justify weakening the gate.
 
-The delayed DEV-008 ChatGPT-session handoff MAY serve as the first Patient Zero
-for this v2 derivation contract.
+Historical Handoff Test #3 was governed by the pre-correction v2 derivation
+contract. Its evidence remains interpretable under v2; corrected derivations use
+the current v3 contract.
 
-# 39. v2 Explicit Non-Effects
+# 39. v3 Explicit Non-Effects
 
-This v2 standard:
+This v3 standard:
 
 - does NOT change `CTRL-BASELINE-001`;
 - does NOT change `CTRL-ROADMAP-001` v2;
