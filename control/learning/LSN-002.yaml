@@ -1,0 +1,120 @@
+id: LSN-002
+kind: factory-learning
+lifecycle_state: promoted
+title: Make final handoff gate state machine-readable and authoritative
+change_owner: CTRL-CHANGE-005
+governing_handoff_standard_version: 3
+source_revision: 164bba16fdd474f8bb62418d50e90e9250db8524
+
+observation:
+  handoff_test: 4
+  consumer: fresh_chatgpt_conversation
+  transport_mode: direct-file-source-pack
+  sender_semantic_contract:
+    stated_context_acceptance_does_not_verify_live_repository_state: true
+    stated_context_acceptance_does_not_satisfy_execution_activation: true
+    stated_context_acceptance_does_not_grant_mutation_authority: true
+    stated_context_acceptance_does_not_approve_M3_readiness: true
+  authoritative_external_sender_gate:
+    status: NOT_READY
+    reason: context_acceptance_non_authorizing_check_failed
+    human_attention_required: true
+  generated_artifact_state:
+    packet_retained_sender_gate_status: READY
+    source_manifest_retained_sender_gate_result: READY
+  receiver_pass_1: not_run
+  mandatory_source_pruning_count: 0
+  deterministic_validation: passed
+  token_usage: unknown
+
+evidence_provenance:
+  evidence_class: observational_pre_m4
+  finding_source: project_owner_approved_CTRL_CHANGE_005
+  ignored_runtime_package:
+    durable_evidence: false
+    relied_on_as_durable_evidence: false
+  receiver_evidence_scope: none_receiver_not_run
+  timestamps: unknown
+  runtime_evidence: unknown
+
+root_cause:
+  - machine_readable_non_authorization_semantics_were_underspecified
+  - mechanical_proof_depended_on_representation_or_prose_detection
+  - authoritative_final_gate_result_was_not_propagated_across_derived_artifacts
+
+validation:
+  state: validated
+  basis:
+    - semantic_non_authorization_contract_was_present
+    - mechanical_package_gate_returned_NOT_READY
+    - retained_derived_artifacts_contained_conflicting_READY_state
+  limitations:
+    - ignored_test_4_package_is_not_durable_evidence
+    - no_receiver_pass_was_run
+    - no_live_runtime_result_is_claimed
+
+promoted_result:
+  - contract: context_acceptance_effect
+    location: control/handoff/README.md
+  - rule: HO-I19
+    title: Gate Result Authority
+    location: control/handoff/README.md
+  - standard: CTRL-HANDOFF-README-001
+    version: 4
+  - profile: CTRL-HANDOFF-PROFILE-CHATGPT-SESSION-001
+    version: 3
+  - profile: CTRL-HANDOFF-PROFILE-GEMINI-SESSION-001
+    version: 3
+
+applicability:
+  - derived_handoff_packages
+  - governed_derived_artifact_sets_with_final_acceptance_or_readiness_gates
+  - automation_where_prose_and_machine_readable_state_can_diverge
+
+does_not_imply:
+  - Handoff_Test_4_was_Receiver_accepted
+  - Receiver_Pass_1_was_run
+  - Handoff_Test_4_was_READY
+  - v3_capability_semantics_were_fundamentally_invalid
+  - M3_is_promoted_or_ready
+  - M4_has_started_or_proven_ROI
+  - a_DEV_implementation_task_exists
+  - ignored_runtime_package_is_durable_evidence
+
+package_completeness_gate:
+  status: NOT_READY
+  run_count: 1
+  reason: context_acceptance_non_authorizing_check_failed
+  human_attention_required: true
+
+context_treatment_evidence:
+  evidence_class: observational_pre_m4
+  consumer_profile: CTRL-HANDOFF-PROFILE-CHATGPT-SESSION-001
+  transport_mode: direct-file-source-pack
+  treatment_id: direct-file-source-pack
+  source_revision: 164bba16fdd474f8bb62418d50e90e9250db8524
+  context_strategy: manual-context-pack
+  candidate_count: unknown
+  selected_count: unknown
+  pruned_count: unknown
+  derivation_started_at: unknown
+  derivation_finished_at: unknown
+  wall_clock_duration: unknown
+  usage:
+    input_tokens: unknown
+    output_tokens: unknown
+    total_tokens: unknown
+  sender_gate_result: NOT_READY
+  context_acceptance_result: not_run
+  execution_activation_result: not_run
+  limitations:
+    - observational_evidence_only
+    - file_counts_are_not_token_cost_proxies
+    - not_an_M4_experiment
+    - no_context_efficiency_savings_or_ROI_claim
+
+unknowns:
+  - exact_receiver_timing
+  - exact_sender_derivation_timing
+  - input_output_and_total_token_usage
+  - live_runtime_state_at_receiver

@@ -6,7 +6,7 @@ status: active
 version: 1
 owner: factory-maintainer
 last_updated: 2026-09-22
-change_owner: CTRL-CHANGE-004
+change_owner: CTRL-CHANGE-005
 ---
 
 # AI-Native SDF Project Control Plane Operating Contract
@@ -75,7 +75,8 @@ control/
 │   └── README.md
 ├── learning/
 │   ├── README.md
-│   └── LSN-001.yaml
+│   ├── LSN-001.yaml
+│   └── LSN-002.yaml
 └── history/
     ├── README.md
     └── CTRL-BASELINE-001.md
