@@ -221,3 +221,21 @@ tasks:
         - tools/traceability/tests/test_validator.py
         - knowledge/traceability.yaml
         - design/tasks/DEV-010.md
+
+  DEV-011:
+    level: T1
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - NFR-002
+    implementation:
+      paths:
+        - knowledge/traceability.yaml
+        - design/tasks/DEV-011.md
+        - design/verification/TEST-011.md
+        - src/ai_execution/cost_baseline.py
+        - tools/ai_cost_baseline.py
+        - tools/traceability/tests/test_cost_baseline.py
+    verification:
+      - TEST-011

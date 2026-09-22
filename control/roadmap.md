@@ -6,6 +6,7 @@ status: active
 version: 2
 owner: factory-maintainer
 last_updated: 2026-09-22
+change_owner: CTRL-CHANGE-006
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -197,9 +198,9 @@ Phase 1:
 Latest completed milestone:
   M2 — Bounded Autonomous Execution
 
-Next milestone:
+Current milestone:
   M3 — AI Cost Control Baseline
-  status: planned
+  status: in_progress
 ```
 
 Current measurement maturity:
@@ -233,7 +234,7 @@ be retroactively estimated as zero.
 | M0  | Governed Foundation                | Phase 0   | complete | Canonical, traceable, reproducible and human-governed engineering foundation                     |
 | M1  | Metered AI Runtime                 | Phase 1.0 | complete | Every controlled AI invocation can be bounded, attributed and measured                           |
 | M2  | Bounded Autonomous Execution       | Phase 1.0 | complete | Autonomous implementation cannot exceed governed attempt/circuit limits |
-| M3  | AI Cost Control Baseline           | Phase 1.1 | planned  | Reliable chat-heavy control window establishes cost/quality baseline                             |
+| M3  | AI Cost Control Baseline           | Phase 1.1 | in_progress | Reliable chat-heavy control window establishes cost/quality baseline                          |
 | M4  | Efficient Context                  | Phase 1.1 | planned  | Context optimization is accepted or rejected using measured ROI                                  |
 | M5  | Efficient Model / Reasoning        | Phase 1.1 | planned  | Model/reasoning optimization is independently measured                                           |
 | M6  | Proven Bounded Automation          | Phase 1   | planned  | Independently proven treatments combine into bounded AI-assisted execution                       |
@@ -402,7 +403,7 @@ M1.
 ## M3 — AI Cost Control Baseline
 
 **Phase:** Phase 1.1
-**Status:** planned
+**Status:** in_progress
 
 ### Outcome
 
@@ -1104,14 +1105,15 @@ Current roadmap position:
 M0  COMPLETE
 M1  COMPLETE
 M2  COMPLETE
+M3  IN_PROGRESS
 ```
 
-Next intended engineering milestone:
+Current intended delivery:
 
 ```text
-M3 — AI Cost Control Baseline
-status: PLANNED
-readiness: pending explicit decision
+DEV-011 — M3 AI Cost Control Baseline measurement/report capability
+status: ACTIVE
+readiness: Project Owner approved
 ```
 
 The initial Project Control Baseline remains established and active:
@@ -1129,4 +1131,5 @@ PR #12 at:
 63fc3f2de53631dc1d6e32f3e1600a3cd9623afc
 ```
 
-This update does not promote M3 to READY and does not rebaseline the project.
+CTRL-CHANGE-006 activates M3 delivery without marking the cost-control baseline
+proven or complete. It does not rebaseline the project and does not start M4.
