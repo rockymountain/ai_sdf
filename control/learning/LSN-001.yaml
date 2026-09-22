@@ -1,0 +1,97 @@
+id: LSN-001
+kind: factory-learning
+lifecycle_state: promoted
+title: Separate context acceptance from repository execution activation
+change_owner: CTRL-CHANGE-004
+source_revision: f7f3dee18e0ca426114e154520b2a9b9a0f70474
+
+observation:
+  handoff_test: 3
+  governing_handoff_standard_version: 2
+  consumer: fresh_chatgpt_conversation
+  transport_mode: direct-file-source-pack
+  sender_gate_result: READY
+  receiver_pass: 1
+  receiver_result: REJECTED
+  finding: >-
+    The Receiver lacked the mounted repository and runtime capability required by
+    the old verification contract.
+
+evidence_provenance:
+  evidence_class: observational_pre_m4
+  finding_source: project_owner_approved_CTRL_CHANGE_004
+  ignored_runtime_package:
+    durable_evidence: false
+    relied_on_as_durable_evidence: false
+  receiver_evidence_scope: supplied_finding_only
+  timestamps: unknown
+  runtime_evidence: unknown
+
+root_cause:
+  - conflation_of_context_acceptance_and_execution_activation
+  - assumption_that_same_logical_project_implies_same_executable_workspace
+
+validation:
+  state: validated
+  basis:
+    - direct_file_transport_declared
+    - old_profile_required_live_git_and_workspace_checks
+    - receiver_lacked_declared_live_repository_runtime_capability
+  limitations:
+    - no_durable_receiver_transcript_claimed
+    - no_live_runtime_result_claimed
+
+promoted_result:
+  - rule: HO-I18
+    title: Receiver Capability Compatibility
+    location: control/handoff/README.md
+  - profile: CTRL-HANDOFF-PROFILE-CHATGPT-SESSION-001
+    correction: capability_compatible_context_acceptance
+  - profile: CTRL-HANDOFF-PROFILE-GEMINI-SESSION-001
+    correction: capability_compatible_context_acceptance
+
+applicability:
+  - conversation_receivers_using_direct_file_source_packs
+  - transports_without_live_repository_workspace_or_runtime_access
+  - handoffs_where_repository_or_domain_mutation_may_follow_context_transfer
+
+does_not_imply:
+  - ignored_runtime_package_is_durable_evidence
+  - sender_claims_are_receiver_verified
+  - context_acceptance_proves_live_repository_state
+  - context_acceptance_grants_execution_authority
+  - receiver_pass_2_was_run
+  - M3_is_ready_or_promoted
+  - M4_is_authorized_started_accepted_or_ROI_positive
+  - file_count_is_a_token_cost_proxy
+
+context_treatment_evidence:
+  evidence_class: observational_pre_m4
+  consumer_profile: CTRL-HANDOFF-PROFILE-CHATGPT-SESSION-001
+  transport_mode: direct-file-source-pack
+  treatment_id: direct-file-source-pack
+  source_revision: f7f3dee18e0ca426114e154520b2a9b9a0f70474
+  context_strategy: manual-context-pack
+  candidate_count: unknown
+  selected_count: unknown
+  pruned_count: unknown
+  derivation_started_at: unknown
+  derivation_finished_at: unknown
+  wall_clock_duration: unknown
+  usage:
+    input_tokens: unknown
+    output_tokens: unknown
+    total_tokens: unknown
+  sender_gate_result: READY
+  context_acceptance_result: rejected
+  execution_activation_result: not_run
+  limitations:
+    - source_pack_counts_not_relied_on_from_ignored_runtime_package
+    - observational_evidence_only
+    - not_an_M4_experiment
+
+unknowns:
+  - exact_receiver_timestamp
+  - exact_sender_derivation_duration
+  - input_output_and_total_token_usage
+  - live_runtime_state_at_receiver

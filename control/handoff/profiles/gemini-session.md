@@ -3,9 +3,10 @@ id: CTRL-HANDOFF-PROFILE-GEMINI-SESSION-001
 kind: handoff-consumer-profile
 title: Gemini Conversation Session Handoff Profile
 status: active
-version: 1
+version: 2
 owner: factory-maintainer
-last_updated: 2026-09-21
+last_updated: 2026-09-22
+change_owner: CTRL-CHANGE-004
 consumer_kind: gemini-conversation
 ---
 
@@ -39,6 +40,11 @@ Type A — Session / Agent Continuation
 A stricter core handoff type MAY use this profile only when all stricter core
 requirements are also satisfied.
 
+The same logical project, uploaded files, or conversation purpose MUST NOT be
+treated as proof that the Gemini Receiver has the same executable workspace.
+For Type A, workspace continuity is a Sender claim until a repository-capable
+actor verifies it at Repository Execution Activation.
+
 ## 3. Consumer constraints
 
 ```yaml
@@ -48,6 +54,12 @@ consumer_kind: gemini-conversation
 transport:
   mode: direct-file-source-pack
 
+receiver_capabilities:
+  attached_source_read: true
+  live_repository: false
+  live_workspace: false
+  runtime_access: false
+
 context_constraints:
   max_source_files: 10
   subject_to_availability: true
@@ -55,6 +67,12 @@ context_constraints:
   provider_constraint_source: Google Gemini Apps Help
 
 receiver_verification:
+  max_passes: 2
+  max_clarification_cycles: 1
+
+repository_execution_activation:
+  required_before_repository_or_domain_mutation: true
+  executor_capability: live_repository_and_workspace
   max_passes: 2
   max_clarification_cycles: 1
 ```
@@ -73,6 +91,10 @@ A code-folder or GitHub-repository ingestion path is a different transport mode
 and MUST NOT be silently treated as equivalent to this direct-file profile.
 If that mode is intentionally used later, its transfer semantics SHOULD be
 defined explicitly rather than weakening this profile's bounded-source rules.
+
+This direct-file mode does not mount the repository, workspace, runtime, or
+local filesystem for the conversation Receiver. A different Gemini capability
+or connector mode requires an explicitly matching profile/transport declaration.
 
 ## 4. Required outputs
 
@@ -202,10 +224,36 @@ derivation:
   selected_count: <integer>
   pruned_count: <integer>
   human_overrides: []
+
+context_treatment_evidence:
+  evidence_class: observational_pre_m4
+  consumer_profile: CTRL-HANDOFF-PROFILE-GEMINI-SESSION-001
+  transport_mode: direct-file-source-pack
+  treatment_id: direct-file-source-pack
+  source_revision: <full-sha-or-unknown>
+  context_strategy: manual-context-pack
+  candidate_count: <integer-or-unknown>
+  selected_count: <integer-or-unknown>
+  pruned_count: <integer-or-unknown>
+  derivation_started_at: <timestamp-or-unknown>
+  derivation_finished_at: <timestamp-or-unknown>
+  wall_clock_duration: <duration-or-unknown>
+  usage:
+    input_tokens: <integer-or-unknown>
+    output_tokens: <integer-or-unknown>
+    total_tokens: <integer-or-unknown>
+  sender_gate_result: READY | NOT_READY | unknown
+  context_acceptance_result: accepted | rejected | not_run | unknown
+  execution_activation_result: activated | rejected | not_run | unknown
+  limitations: []
 ```
 
 If the observed available source limit differs from 10, `source_limit` MUST
 record the observed value used for that actual transfer.
+
+Unknown timing or usage MUST remain `unknown`, never zero. File counts describe
+source-set shape and MUST NOT be interpreted as token cost, M4 acceptance, or
+context-treatment ROI.
 
 ## 9. Receiver Bootstrap Instruction contract
 
@@ -217,20 +265,76 @@ The prompt MUST instruct the Receiver to:
 2. treat the uploaded source pack as bounded reconstruction evidence, not
    replacement authority;
 3. avoid relying on prior chat history or provider memory;
-4. perform Receiver Verification before project/domain mutation;
-5. compare actual Git/control/workspace evidence with Sender claims;
-6. preserve declared unrelated local state;
-7. obey the two-pass / one-clarification verification budget;
-8. stop on unresolved mismatch;
-9. distinguish next intended work from current execution authority;
-10. report the first post-acceptance decision required from the Project Owner.
+4. perform the Context Acceptance Gate against evidence actually uploaded;
+5. distinguish Receiver-observable evidence from Sender claims;
+6. record branch, live revision, workspace, runtime, and preservation checks as
+   deferred to Repository Execution Activation;
+7. preserve declared unrelated local state as an activation requirement, not as
+   a condition the conversation Receiver claims to have verified;
+8. obey the two-pass / one-clarification verification budget;
+9. stop on unresolved mismatch within uploaded evidence;
+10. distinguish context acceptance, execution activation, and authority;
+11. report the first post-acceptance decision required from the Project Owner.
 
 The bootstrap instruction MUST NOT imply that provider access, file possession,
 or handoff context grants permission to modify protected or governed systems.
 
+It MUST state that successful Context Acceptance does not verify live
+Git/workspace/runtime state and does not authorize repository/domain mutation.
+
 ## 10. Receiver Verification contract
 
-For a Git-backed project, the bootstrap instruction SHOULD request the
+The direct-file Gemini Receiver MUST verify only evidence it can observe in the
+uploaded source pack, including:
+
+```text
+packet/manifest identity and internal consistency
+presence and readability of mandatory selected sources
+canonical/control claims supported by uploaded artifacts
+visible pruning and context-loss records
+known unknowns, authority boundary, preserve requirements, and stop conditions
+```
+
+Sender prose or copied command output MUST NOT be treated as proof of live state.
+
+The verification record MUST separate:
+
+```yaml
+receiver_observed: []
+sender_asserted_not_receiver_observable: []
+deferred_to_repository_execution_activation:
+  - git_branch
+  - source_revision_reachability
+  - working_tree_state
+  - runtime_state
+  - preserve_do_not_touch_state
+```
+
+The Receiver MUST produce one Context Acceptance outcome:
+
+```text
+CONTEXT ACCEPTED
+```
+
+or:
+
+```text
+CONTEXT REJECTED — PASS 1
+```
+
+After one permitted clarification/correction cycle, a second failure MUST
+produce:
+
+```text
+HANDOFF_CIRCUIT_OPEN
+gate = context_acceptance
+human_attention_required = true
+autonomous_follow_on_allowed = false
+```
+
+No third automatic verification pass is permitted.
+
+Before repository/domain mutation, a repository-capable actor MUST perform the
 functional equivalent of:
 
 ```text
@@ -239,30 +343,9 @@ git rev-parse HEAD
 git status --porcelain=v1
 ```
 
-Additional checks MAY be required by the handoff packet.
-
-The Receiver MUST produce one gate outcome:
-
-```text
-HANDOFF ACCEPTED
-```
-
-or:
-
-```text
-HANDOFF REJECTED — PASS 1
-```
-
-After one permitted clarification/correction cycle, a second failure MUST
-produce:
-
-```text
-HANDOFF_CIRCUIT_OPEN
-human_attention_required = true
-autonomous_follow_on_allowed = false
-```
-
-No third automatic verification pass is permitted.
+plus any declared runtime/control checks. This Repository Execution Activation
+Gate also fails closed and retains a two-pass / one-clarification maximum.
+Context acceptance MUST NOT be presented as execution activation or authority.
 
 ## 11. Package Completeness Gate
 
@@ -281,6 +364,11 @@ Before a Gemini session handoff can be `READY`, verify:
 [ ] no mandatory source was pruned
 [ ] bootstrap prompt generated
 [ ] verification contract generated
+[ ] Receiver capability declaration matches direct-file transport
+[ ] Context Acceptance checks use only Receiver-observable evidence
+[ ] unavailable live checks are deferred to Repository Execution Activation
+[ ] context_treatment_evidence present and observational_pre_m4 unless a later
+    governed M4 experiment explicitly applies
 [ ] preserve / stop / authority boundaries present
 [ ] known unknowns explicit
 [ ] no secret or convenience credential embedded
@@ -300,6 +388,10 @@ exists.
 A real Gemini-session handoff MUST demonstrate that all required outputs are
 derived without requiring the Project Owner to discover a missing mandatory
 package component.
+
+The proof MUST demonstrate capability-compatible Context Acceptance and explicit
+deferral of live checks to Repository Execution Activation. It MUST NOT treat
+context acceptance as mutation authority.
 
 Human source-selection overrides are permitted only when recorded with:
 

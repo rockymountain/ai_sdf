@@ -5,7 +5,8 @@ title: AI-Native SDF Project Control Plane Operating Contract
 status: active
 version: 1
 owner: factory-maintainer
-last_updated: 2026-09-21
+last_updated: 2026-09-22
+change_owner: CTRL-CHANGE-004
 ---
 
 # AI-Native SDF Project Control Plane Operating Contract
@@ -72,6 +73,9 @@ control/
 ├── project-control.yaml
 ├── handoff/
 │   └── README.md
+├── learning/
+│   ├── README.md
+│   └── LSN-001.yaml
 └── history/
     ├── README.md
     └── CTRL-BASELINE-001.md
@@ -112,6 +116,14 @@ clean durable-state requirements, and durable handoff-snapshot rules.
 Handoff transfers context; it does not transfer or create execution authority.
 
 See [`handoff/README.md`](handoff/README.md).
+
+### `learning/`
+
+Stores compact, evidence-linked Factory learning that provides provenance for
+promoted rules and controls. Learning records do not create execution authority,
+replace canonical design/governance, or act as runtime evidence.
+
+See [`learning/README.md`](learning/README.md).
 
 ---
 
