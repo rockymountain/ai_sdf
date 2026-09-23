@@ -2,7 +2,7 @@
 id: TEST-011
 kind: verification
 title: M3 AI Cost Control Baseline measurement and report verification
-status: proposed
+status: verified
 version: 1
 verification_type: integration
 ---

@@ -10,9 +10,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable, TextIO
 
-from .model import ControlledAIInvocation, TerminalReason, TerminalStatus, UsageEvidence
+from .model import ControlledAIInvocation, HumanAuthorization, TerminalReason, TerminalStatus, UsageEvidence
 from .runtime import CapabilityProfile, RuntimeSnapshot
-from .execution import SCHEMA, ExecutionRejected, apply_start_evidence, apply_terminal, authorize_start
+from .execution import (
+    NONIMPLEMENTATION_AUTHORIZED_PURPOSES,
+    SCHEMA,
+    ExecutionRejected,
+    apply_start_evidence,
+    apply_terminal,
+    authorize_start,
+    validate_start_authorization,
+)
 
 
 SCHEMA_VERSION = 3
@@ -145,6 +153,7 @@ class TelemetryStore:
         started_at = _now()
         with closing(self._connect()) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
+            authorization = validate_start_authorization(invocation)
             connection.execute(
                 """
                 INSERT INTO invocations (
@@ -177,7 +186,12 @@ class TelemetryStore:
                     0,
                 ),
             )
-            authorize_start(connection, invocation, max_attempts)
+            authorize_start(
+                connection,
+                invocation,
+                max_attempts,
+                nonimplementation_authorization=authorization,
+            )
         return started_at
 
     def record_start_evidence(self, reservation_id, evidence) -> None:
@@ -277,6 +291,50 @@ class TelemetryStore:
             if row is not None:
                 return self._with_attempt_identity(connection, dict(row))
         return None
+
+    def nonimplementation_authorization(self, invocation_id: str) -> dict[str, Any]:
+        """Return deterministic authorization cardinality and validity for an invocation."""
+        expected_fields = {"actor", "timestamp", "reason", "disposition"}
+        with closing(self._connect()) as connection:
+            invocation = connection.execute(
+                "SELECT invocation_id, execution_scope_id, invocation_purpose "
+                "FROM invocations WHERE invocation_id=?",
+                (invocation_id,),
+            ).fetchone()
+            if invocation is None:
+                raise KeyError(f"unknown invocation_id {invocation_id}")
+            events = list(connection.execute(
+                "SELECT execution_scope_id, reservation_id, payload FROM execution_evidence "
+                "WHERE invocation_id=? AND kind='nonimplementation_authorized' ORDER BY evidence_id",
+                (invocation_id,),
+            ))
+        required = invocation["invocation_purpose"] in {
+            purpose.value for purpose in NONIMPLEMENTATION_AUTHORIZED_PURPOSES
+        }
+        payload = None
+        structurally_valid = False
+        if len(events) == 1:
+            try:
+                candidate = json.loads(events[0]["payload"])
+                if isinstance(candidate, dict) and set(candidate) == expected_fields:
+                    HumanAuthorization(**candidate)
+                    payload = candidate
+                    structurally_valid = (
+                        events[0]["execution_scope_id"] == invocation["execution_scope_id"]
+                        and events[0]["reservation_id"] is None
+                    )
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+        valid = len(events) == 1 and structurally_valid if required else len(events) == 0
+        return {
+            "invocation_id": invocation_id,
+            "execution_scope_id": invocation["execution_scope_id"],
+            "invocation_purpose": invocation["invocation_purpose"],
+            "authorization_required": required,
+            "authorization_event_count": len(events),
+            "authorization_payload": payload,
+            "authorization_valid": valid,
+        }
 
     @staticmethod
     def _with_attempt_identity(connection, row):

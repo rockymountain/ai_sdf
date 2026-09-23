@@ -4,8 +4,8 @@ title: AI-Native Software Design Factory Project Control
 status: active
 version: 1
 owner: factory-maintainer
-last_updated: "2026-09-22"
-change_owner: CTRL-CHANGE-006
+last_updated: "2026-09-23"
+change_owner: CTRL-CHANGE-007
 
 project:
   id: ai_sdf
@@ -51,9 +51,10 @@ control_position:
     id: M3
     title: AI Cost Control Baseline
     status: in_progress
+    actual_measurement_window: not_started
   intended_next_delivery:
-    dev_task: DEV-011
-    status: in_progress
+    dev_task: null
+    status: planned
 
 capacity:
   human_focused:
@@ -93,6 +94,14 @@ milestones:
     title: AI Cost Control Baseline
     phase: phase-1.1
     status: in_progress
+    actual_measurement_window: not_started
+    evidence:
+      dev:
+        - DEV-011
+        - DEV-012
+      verification:
+        - TEST-011
+        - TEST-012
   M4:
     title: Efficient Context
     phase: phase-1.1

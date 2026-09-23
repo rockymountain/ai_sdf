@@ -239,3 +239,30 @@ tasks:
         - tools/traceability/tests/test_cost_baseline.py
     verification:
       - TEST-011
+
+  DEV-012:
+    level: T2
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - NFR-002
+    design:
+      - CMP-004
+    decisions:
+      - ADR-007
+    implementation:
+      paths:
+        - design/architecture/CMP-004.md
+        - design/decisions/ADR-007.md
+        - design/tasks/DEV-012.md
+        - design/verification/TEST-012.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/execution.py
+        - src/ai_execution/store.py
+        - tools/ai_execution.py
+        - tools/traceability/tests/test_ai_execution.py
+        - tools/traceability/tests/test_authorization_adoption.py
+        - tools/traceability/tests/test_bounded_execution.py
+    verification:
+      - TEST-012

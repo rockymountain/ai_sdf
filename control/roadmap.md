@@ -5,8 +5,8 @@ title: AI-Native Software Design Factory Delivery Roadmap
 status: active
 version: 2
 owner: factory-maintainer
-last_updated: 2026-09-22
-change_owner: CTRL-CHANGE-006
+last_updated: 2026-09-23
+change_owner: CTRL-CHANGE-007
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -201,6 +201,7 @@ Latest completed milestone:
 Current milestone:
   M3 — AI Cost Control Baseline
   status: in_progress
+  actual measurement window: not_started
 ```
 
 Current measurement maturity:
@@ -1108,12 +1109,20 @@ M2  COMPLETE
 M3  IN_PROGRESS
 ```
 
-Current intended delivery:
+Delivered under CTRL-CHANGE-007:
 
 ```text
-DEV-011 — M3 AI Cost Control Baseline measurement/report capability
-status: ACTIVE
-readiness: Project Owner approved
+DEV-012 — durable controlled-runtime operator authorization and adoption
+status: IMPLEMENTED
+verification: TEST-012 VERIFIED
+live adoption gate: PASSED as a separately authorized PRE-WINDOW proof
+```
+
+Current next decision:
+
+```text
+prospective M3 measurement-window declaration and fixed task-set selection
+concrete next DEV: not yet selected
 ```
 
 The initial Project Control Baseline remains established and active:
@@ -1133,3 +1142,10 @@ PR #12 at:
 
 CTRL-CHANGE-006 activates M3 delivery without marking the cost-control baseline
 proven or complete. It does not rebaseline the project and does not start M4.
+
+CTRL-CHANGE-007 approves ADR-007 and delivers the bounded DEV-012 implementation
+while closing the already delivered DEV-011 capability. The separately authorized
+PRE-WINDOW live provider adoption proof passed and proves generic controlled-runtime
+operator adoption; it is not M3 baseline evidence. The actual M3 measurement window
+has not started, the cost-control baseline is not yet proven, the exact M3 token KPI
+is not decision-eligible, and M4 remains planned and unauthorized.
