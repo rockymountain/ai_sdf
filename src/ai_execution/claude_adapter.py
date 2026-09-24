@@ -29,6 +29,38 @@ from .runtime import (
 
 
 ProcessFactory = Callable[..., Any]
+VersionRunner = Callable[..., Any]
+
+VERSION_TIMEOUT_SECONDS = 30
+
+
+def resolve_runtime_version(executable: str, *, run: VersionRunner = subprocess.run) -> str:
+    """Observe the declared executable's own ``--version`` output; never infer it.
+
+    This is local executable inspection, not a provider invocation. Any failure,
+    non-zero exit, blank, or multi-line output fails closed.
+    """
+    if not isinstance(executable, str) or not executable.strip():
+        raise ValueError("Claude executable must be explicit")
+    try:
+        completed = run(
+            [executable, "--version"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=VERSION_TIMEOUT_SECONDS,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError(f"Claude runtime version unavailable: {type(exc).__name__}") from exc
+    output = completed.stdout if isinstance(completed.stdout, str) else ""
+    lines = output.strip().splitlines()
+    if completed.returncode != 0 or len(lines) != 1 or not lines[0].strip():
+        raise ValueError("Claude runtime version unavailable: no single-line version output")
+    return lines[0].strip()
 
 
 @dataclass(slots=True)
@@ -56,7 +88,7 @@ class _ProcessController:
 class _ClaudeHandle:
     process: Any
     start_control: RuntimeStartControl
-    runtime_version: str | None
+    runtime_version: str
     runtime_session_id: str | None = None
     runtime_invocation_id: str | None = None
     runtime_name: str = "claude"
@@ -85,13 +117,22 @@ class ClaudeRuntimeAdapter:
         repo: str,
         executable: str,
         runtime_version: str | None = None,
+        version_runner: VersionRunner = subprocess.run,
         process_factory: ProcessFactory = subprocess.Popen,
     ):
         if not isinstance(executable, str) or not executable.strip():
             raise ValueError("Claude executable must be explicit")
+        # An explicitly injected pinned version (deterministic tests only) must
+        # still be non-blank; production leaves this None and resolves lazily in
+        # start(), inside the existing pre-start failure handling.
+        if runtime_version is not None and (
+            not isinstance(runtime_version, str) or not runtime_version.strip()
+        ):
+            raise ValueError("Claude runtime version override must be non-blank when supplied")
         self.repo = str(Path(repo).resolve())
         self.executable = executable
         self.runtime_version = runtime_version
+        self._version_runner = version_runner
         self._process_factory = process_factory
 
     def start(
@@ -105,6 +146,16 @@ class ClaudeRuntimeAdapter:
         start_control.register_abort(controller.abort)
         try:
             permission_mode, tools, strict_mcp = _capability_arguments(invocation, capability)
+            # FR-006/FR-007: version discovery is a local pre-start failure like any
+            # other in this block. It must run after the gateway has already
+            # persisted governed invocation-start/reservation state (the caller's
+            # responsibility, not this adapter's) and before any provider process
+            # exists, so a discovery failure here is reported through the same
+            # except clause below and releases the reservation through the normal
+            # StartDisposition.not_started path rather than bypassing it.
+            runtime_version = self.runtime_version or resolve_runtime_version(
+                self.executable, run=self._version_runner
+            )
             command = [
                 self.executable,
                 "-p",
@@ -139,7 +190,7 @@ class ClaudeRuntimeAdapter:
             )
             controller.attach(process)
             start_control.raise_if_cancelled()
-            return _ClaudeHandle(process, start_control, self.runtime_version)
+            return _ClaudeHandle(process, start_control, runtime_version)
         except Exception:
             start_control.report_start(StartEvidence(
                 (

@@ -203,8 +203,15 @@ def invoke_controlled(args: argparse.Namespace) -> int:
     return 0 if outcome.terminal_status is TerminalStatus.success else 1
 
 
-def runtime_adapter(args: argparse.Namespace, repo: Path):
-    """Resolve only the operator's explicit supported adapter identifier."""
+def runtime_adapter(args: argparse.Namespace, repo: Path, *, version_runner=subprocess.run):
+    """Resolve only the operator's explicit supported adapter identifier.
+
+    Claude runtime-version discovery is intentionally NOT performed here. It runs
+    inside ClaudeRuntimeAdapter.start(), after the gateway has already persisted
+    governed invocation-start/reservation state, so a discovery failure is a normal
+    pre-start failure that releases any implementation reservation through the
+    existing StartDisposition.not_started path instead of bypassing it.
+    """
     if args.runtime_adapter == "codex":
         if args.claude_executable is not None:
             raise ValueError("--claude-executable is valid only with --runtime-adapter claude")
@@ -215,6 +222,7 @@ def runtime_adapter(args: argparse.Namespace, repo: Path):
         return ClaudeRuntimeAdapter(
             repo=str(repo),
             executable=args.claude_executable,
+            version_runner=version_runner,
         )
     raise ValueError(f"unsupported runtime adapter: {args.runtime_adapter}")
 

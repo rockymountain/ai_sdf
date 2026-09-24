@@ -349,11 +349,23 @@ class OperatorSelectionTests(unittest.TestCase):
             )
 
     def test_explicit_claude_selection_uses_declared_executable_without_runtime_call(self):
+        # Version discovery must not happen at operator/construction time: it now
+        # runs inside ClaudeRuntimeAdapter.start(), after the gateway has already
+        # persisted governed invocation-start/reservation state (TEST-018).
+        calls = []
+
+        def version_runner(command, **options):
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 0, stdout="observed-version\n")
+
         adapter = self.operator.runtime_adapter(
-            Namespace(runtime_adapter="claude", claude_executable="claude-test"), ROOT
+            Namespace(runtime_adapter="claude", claude_executable="claude-test"),
+            ROOT,
+            version_runner=version_runner,
         )
         self.assertEqual("claude", adapter.adapter_name)
         self.assertEqual("claude-test", adapter.executable)
+        self.assertEqual([], calls)
         self.assertIsNone(adapter.runtime_version)
 
     def test_operator_maps_explicit_none_and_preserves_explicit_reasoning_value(self):

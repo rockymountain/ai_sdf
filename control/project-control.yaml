@@ -4,8 +4,8 @@ title: AI-Native Software Design Factory Project Control
 status: active
 version: 1
 owner: factory-maintainer
-last_updated: "2026-09-24"
-change_owner: CTRL-CHANGE-010
+last_updated: "2026-09-25"
+change_owner: CTRL-CHANGE-011
 
 project:
   id: ai_sdf
@@ -56,6 +56,45 @@ control_position:
     dev_task: null
     status: planned
   current_decision:
+    change_owner: CTRL-CHANGE-011
+    subject: Claude runtime-version provenance correction
+    status: complete
+    disposition: delivered
+    reason: >-
+      An independent post-closure Codex audit of CTRL-CHANGE-010 found that
+      production Claude execution did not record the runtime version required by
+      accepted FR-006: the operator constructed ClaudeRuntimeAdapter without one,
+      retained Claude PRE-WINDOW proof rows record runtime_version null, and
+      deterministic verification accepted that null state. T1 DEV-018 / TEST-018
+      restored conformance prospectively by recording the declared executable's own
+      --version output and failing closed before provider start when it cannot be
+      observed. A second independent Codex re-audit then found the first DEV-018
+      implementation itself violated accepted FR-007: it resolved runtime version in
+      the operator, before ControlledInvocationGateway.invoke(), so a discovery
+      failure for an implementation invocation bypassed RuntimeStartControl/start
+      evidence and stranded an existing RESERVED reservation instead of releasing
+      it. The correction moved discovery inside ClaudeRuntimeAdapter.start(),
+      reusing the adapter's existing pre-start try/except and the
+      gateway/controller's existing reservation-release machinery unchanged, so a
+      discovery failure now releases an implementation reservation
+      (RESERVED -> RELEASED) without consuming an attempt and the candidate slot
+      remains reusable. The re-audit returned
+      ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers, and the
+      Project Owner accepted the correction for closure. Historical Claude rows
+      with runtime_version null remain immutable and are not backfilled.
+      AIRuntimePort, the operational schema, capability, routing, and Codex
+      runtime-version behavior are unchanged.
+    measurement_status: PRE-WINDOW
+    audit:
+      first_reaudit_verdict: incomplete_FR-007_reservation_semantics
+      second_reaudit_verdict: ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS
+      material_blockers_remaining: false
+    evidence:
+      dev:
+        - DEV-018
+      verification:
+        - TEST-018
+  prior_delivered_decision:
     change_owner: CTRL-CHANGE-010
     subject: dual-runtime controlled execution and purpose-scoped M3 treatment
     status: complete
@@ -68,6 +107,12 @@ control_position:
       AIRuntimePort or introducing automatic routing. No PRE-WINDOW proof counts
       as M3 baseline evidence.
     measurement_status: PRE-WINDOW
+    post_closure_finding:
+      source: independent_codex_audit
+      finding: incomplete_claude_runtime_version_provenance
+      correction_owner: CTRL-CHANGE-011
+      correction_status: resolved
+      historical_evidence_rewritten: false
   retained_deferred_decision:
     change_owner: CTRL-CHANGE-009
     subject: quality-gate family intent/design package

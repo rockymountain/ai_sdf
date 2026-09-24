@@ -6,7 +6,7 @@ status: active
 version: 2
 owner: factory-maintainer
 last_updated: 2026-09-24
-change_owner: CTRL-CHANGE-010
+change_owner: CTRL-CHANGE-011
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -1131,9 +1131,12 @@ Current next decision:
 
 ```text
 CTRL-CHANGE-010 dual-runtime controlled execution is delivered through DEV-017.
-The next decision remains the prospective M3 measurement-window declaration and
-real task-set selection. The fixed set remains undeclared and the measurement
-window is not started.
+CTRL-CHANGE-011 corrects a post-closure Claude runtime-version provenance defect
+through T1 DEV-018 / TEST-018, delivered and closed after a second independent
+Codex re-audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS. The next decision
+remains the prospective M3 measurement-window declaration and real task-set
+selection. The fixed set remains undeclared and the measurement window is not
+started.
 ```
 
 Proposed review candidates:
@@ -1206,3 +1209,35 @@ not rebaseline the project, accept or activate the deferred CTRL-CHANGE-009 pack
 declare the M3 fixed set, start the M3 measurement window, prove the baseline, make
 exact token KPIs decision-eligible, or authorize M4. The next decision remains the
 prospective M3 measurement-window declaration and real task-set selection.
+
+CTRL-CHANGE-011 records that an independent post-closure Codex audit of
+CTRL-CHANGE-010 found incomplete Claude runtime-version provenance: accepted FR-006
+requires terminal records to include runtime versions, but production Claude
+execution recorded `runtime_version = null`. T1 DEV-018 / TEST-018 restores
+conformance prospectively by observing the declared Claude executable's own
+`--version` output before provider execution and failing closed when it cannot be
+observed. The retained Claude PRE-WINDOW rows with null runtime version remain
+immutable historical evidence and are not backfilled. CTRL-CHANGE-010 remains
+delivered history. The correction changes no `AIRuntimePort`, schema, capability,
+routing, or Codex behavior, and does not activate DEV-014/015/016, declare the M3
+fixed set, start the M3 measurement window, prove the baseline, make exact token KPIs
+decision-eligible, or authorize M4.
+
+An independent Codex re-audit of that first DEV-018 implementation found it still
+violated accepted FR-007: it resolved Claude runtime version in the operator, before
+`ControlledInvocationGateway.invoke()`, so a discovery failure for an implementation
+invocation bypassed `RuntimeStartControl`/start evidence and stranded an existing
+`RESERVED` reservation instead of releasing it. The correction moved discovery inside
+`ClaudeRuntimeAdapter.start()`, reusing the adapter's existing pre-start try/except and
+the gateway/controller's existing reservation-release machinery unchanged, so a
+discovery failure now releases an implementation reservation
+(`RESERVED -> RELEASED`) without consuming an attempt, and the candidate slot remains
+reusable. FR-006 and FR-007 both hold. DEV-018 remains T1.
+
+That re-audit returned `ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` with no remaining
+blockers, and the Project Owner accepted the correction, closing CTRL-CHANGE-011 as
+delivered. DEV-018 is implemented and TEST-018 is verified; both are PRE-WINDOW
+corrective work and do not count as M3 baseline evidence. CTRL-CHANGE-010 remains
+unrewritten delivered history. DEV-014/015/016 remain proposed/deferred with no
+implementation authority, the M3 fixed set remains undeclared, the measurement
+window remains not started, and M4 remains unauthorized.

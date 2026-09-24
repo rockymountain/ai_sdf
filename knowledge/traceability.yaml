@@ -393,3 +393,26 @@ tasks:
         - tools/traceability/tests/test_dual_runtime.py
     verification:
       - TEST-017
+
+  DEV-018:
+    level: T1
+    intent:
+      - FR-006
+      - FR-007
+      - FR-011
+    design:
+      - CMP-003
+    decisions:
+      - ADR-006
+      - ADR-012
+    implementation:
+      paths:
+        - design/tasks/DEV-018.md
+        - design/verification/TEST-018.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/claude_adapter.py
+        - tools/ai_execution.py
+        - tools/traceability/tests/test_claude_runtime_version.py
+        - tools/traceability/tests/test_dual_runtime.py
+    verification:
+      - TEST-018
