@@ -5,7 +5,7 @@ status: active
 version: 1
 owner: factory-maintainer
 last_updated: "2026-09-24"
-change_owner: CTRL-CHANGE-008
+change_owner: CTRL-CHANGE-009
 
 project:
   id: ai_sdf
@@ -55,6 +55,25 @@ control_position:
   intended_next_delivery:
     dev_task: null
     status: planned
+  current_decision:
+    change_owner: CTRL-CHANGE-009
+    subject: quality-gate family intent/design package
+    status: deferred
+    disposition: deferred
+    reason: >-
+      Project execution strategy pivoted before owner acceptance to validate
+      purpose-scoped multi-runtime execution with Claude as controlled executor
+      and Codex as independent read-only auditor.
+    measurement_status: PRE-WINDOW
+  prospective_m3_fixed_set:
+    status: not_yet_declared
+    disposition: deferred
+    candidate_lifecycle: proposed
+    implementation_authority: false
+    candidates:
+      - DEV-014
+      - DEV-015
+      - DEV-016
 
 capacity:
   human_focused:

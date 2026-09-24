@@ -6,7 +6,7 @@ status: active
 version: 2
 owner: factory-maintainer
 last_updated: 2026-09-24
-change_owner: CTRL-CHANGE-008
+change_owner: CTRL-CHANGE-009
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -1130,9 +1130,24 @@ scope: separate generic measurement validation from concrete treatment declarati
 Current next decision:
 
 ```text
-Prospective M3 measurement-window declaration and real task-set selection.
-No DEV-014 or later task is selected.
+CTRL-CHANGE-009 quality-gate family design package retained and deferred.
+The prospective M3 fixed set is not declared.
 ```
+
+Proposed review candidates:
+
+```text
+DEV-014 — bind QG-001/QG-002 declarations to existing enforcement
+DEV-015 — make QG-003/QG-005 policy authoritative
+DEV-016 — enforce accountable QG-006 review evidence after source selection
+```
+
+All three tasks remain PROPOSED and are preserved for possible future governance
+work. They are not accepted ADRs, active implementation authority, a declared M3
+fixed set, or M3 observations. The package was deferred because the execution
+strategy pivoted before owner acceptance to validate purpose-scoped multi-runtime
+execution with Claude as controlled executor and Codex as independent read-only
+auditor. No measurement window, task-set boundary, or timestamp is declared.
 
 The initial Project Control Baseline remains established and active:
 
@@ -1165,5 +1180,13 @@ GPT-5.6 Sol / medium treatment as declaration data rather than a generic engine
 invariant. It does not rebaseline the project, start the M3 measurement window,
 prove the cost-control baseline, make the exact token KPI decision-eligible, start
 M4, or deliver a second provider runtime. The next decision is the prospective M3
-measurement-window declaration and real task-set selection; no DEV-014 or later task
-is selected.
+measurement-window declaration and real task-set selection; at that control point no
+DEV-014 or later task was selected.
+
+CTRL-CHANGE-009 creates the PRE-WINDOW proposed intent/design package for three
+prospective quality-governance increments: QG-001/QG-002, QG-003/QG-005, and QG-006.
+Its disposition is deferred, not rejected or implemented, following the execution-
+strategy pivot. It does not accept the proposed ADRs, activate implementation,
+declare the prospective fixed set, start the M3 measurement window, count this design
+work as baseline evidence, rebaseline the project, or authorize M4. ADR-011 leaves
+review-evidence source selection as an explicit Project Owner decision.

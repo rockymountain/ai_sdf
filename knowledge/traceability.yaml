@@ -289,3 +289,73 @@ tasks:
         - tools/traceability/tests/test_cost_baseline.py
     verification:
       - TEST-013
+
+  DEV-014:
+    level: T2
+    intent:
+      - FR-008
+    design:
+      - CMP-002
+    decisions:
+      - ADR-009
+    implementation:
+      paths:
+        - constitution/quality-gates.yaml
+        - design/requirements/FR-008.md
+        - design/decisions/ADR-009.md
+        - design/tasks/DEV-014.md
+        - design/verification/TEST-014.md
+        - knowledge/traceability.yaml
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_quality_gate.py
+        - tools/traceability/tests/test_validator.py
+    verification:
+      - TEST-014
+
+  DEV-015:
+    level: T2
+    intent:
+      - FR-003
+      - FR-009
+    design:
+      - CMP-002
+    decisions:
+      - ADR-003
+      - ADR-004
+      - ADR-010
+    implementation:
+      paths:
+        - constitution/policies.yaml
+        - constitution/quality-gates.yaml
+        - .github/PULL_REQUEST_TEMPLATE.md
+        - design/requirements/FR-009.md
+        - design/decisions/ADR-010.md
+        - design/tasks/DEV-015.md
+        - design/verification/TEST-015.md
+        - knowledge/traceability.yaml
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_change_provenance.py
+        - tools/traceability/tests/test_quality_gate.py
+        - tools/traceability/tests/test_validator.py
+    verification:
+      - TEST-015
+
+  DEV-016:
+    level: T2
+    intent:
+      - FR-010
+    design:
+      - CMP-002
+    decisions:
+      - ADR-011
+    implementation:
+      paths:
+        - constitution/quality-gates.yaml
+        - .github/PULL_REQUEST_TEMPLATE.md
+        - design/requirements/FR-010.md
+        - design/decisions/ADR-011.md
+        - design/tasks/DEV-016.md
+        - design/verification/TEST-016.md
+        - knowledge/traceability.yaml
+    verification:
+      - TEST-016
