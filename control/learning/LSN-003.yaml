@@ -1,0 +1,72 @@
+id: LSN-003
+kind: factory-learning
+lifecycle_state: promoted
+title: Re-check core principles before escalating local contract conflicts
+change_owner: CTRL-CHANGE-008
+source_revision: f03ad4a24179fcd56d6af66cef1aa85691d7cd1b
+
+observation:
+  context: M3_prospective_measurement_window_preparation
+  local_conflict:
+    normal_T2_reasoning: high
+    then_locked_M3_reasoning: medium
+  initial_treatment: substantial_strategy_A_strategy_B_governance_decision
+  later_finding: >-
+    The generic measurement engine had encoded a current provider/model treatment
+    as an invariant despite the existing provider-neutral architecture principle.
+
+evidence_provenance:
+  evidence_class: repository_design_and_source_review
+  finding_source: project_owner_approved_CTRL_CHANGE_008
+  repository_source_revision: f03ad4a24179fcd56d6af66cef1aa85691d7cd1b
+  runtime_evidence: not_required
+  token_usage: unknown
+  timing: unknown
+
+root_cause:
+  - local_contract_conflict_was_analyzed_before_rechecking_core_principles
+  - temporary_experiment_configuration_was_treated_as_architecture_invariant
+  - symptom_level_governance_was_added_before_questioning_underlying_coupling
+
+validation:
+  state: validated
+  basis:
+    - SDF_P_006_requires_provider_neutral_factory_knowledge_and_policy
+    - CMP_003_and_ADR_006_isolate_provider_specific_runtime_semantics
+    - FR_006_and_NFR_002_make_reasoning_capability_aware
+    - generic_MeasurementWindow_enforced_one_concrete_GPT_treatment
+  limitations:
+    - no_M3_window_was_declared_or_observed
+    - no_second_provider_adapter_was_implemented
+
+preventive_heuristic:
+  before_adding_exception_policy:
+    - reread_applicable_core_principles
+    - reread_upstream_requirement_and_design_intent
+    - classify_invariant_versus_configuration
+    - prefer_removing_accidental_coupling_over_governing_around_it
+
+promoted_result:
+  - decision: ADR-008
+  - task: DEV-013
+  - verification: TEST-013
+  - correction: generic_contract_separated_from_treatment_declaration
+
+applicability:
+  - experiment_and_baseline_design
+  - provider_model_and_runtime_substitutions
+  - architecture_versus_configuration_decisions
+  - local_mismatches_that_begin_generating_exception_policy
+
+does_not_imply:
+  - governance_should_be_skipped
+  - T2_review_is_unnecessary
+  - experimental_treatments_should_not_be_fixed
+  - provider_neutrality_requires_every_provider_to_be_implemented_now
+  - current_M3_treatment_is_invalid
+  - M3_measurement_window_is_started_or_approved
+  - M4_is_authorized
+
+unknowns:
+  - outer_session_token_usage
+  - exact_human_review_effort

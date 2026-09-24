@@ -14,11 +14,15 @@ from typing import Any, Mapping
 
 import yaml
 
+from .model import ContextStrategy, ModelSelectionStrategy
+
 
 REPORT_SCHEMA_VERSION = 1
 SUPPORTED_EVIDENCE_SCHEMA_VERSIONS = {2, 3}
 TRACE_LEVELS = ("T0", "T1", "T2")
 TOKEN_FIELDS = ("input_tokens", "output_tokens", "total_tokens")
+MODEL_SELECTION_STRATEGIES = tuple(value.value for value in ModelSelectionStrategy)
+CONTEXT_STRATEGIES = tuple(value.value for value in ContextStrategy)
 
 
 class BaselineEvidenceError(ValueError):
@@ -69,9 +73,9 @@ class MeasurementWindow:
     acceptance_policy: str
     evidence_boundary: EvidenceBoundary
     requested_model: str
-    requested_reasoning_effort: str
+    requested_reasoning_effort: str | None
     model_selection_strategy: str
-    routing_policy_version: None
+    routing_policy_version: str | None
     context_strategy: str
     automatic_model_routing: bool
     context_optimization: bool
@@ -117,19 +121,38 @@ class MeasurementWindow:
         if set(self.trace_level_mix) != set(TRACE_LEVELS):
             raise BaselineEvidenceError("trace_level_mix must declare T0, T1, and T2")
         _validate_mix("trace_level_mix", self.trace_level_mix, len(self.included_dev_tasks))
-        expected = {
-            "requested_model": "gpt-5.6-sol",
-            "requested_reasoning_effort": "medium",
-            "model_selection_strategy": "fixed",
-            "routing_policy_version": None,
-            "context_strategy": "chat-heavy",
-            "automatic_model_routing": False,
-            "context_optimization": False,
-        }
-        for name, locked in expected.items():
-            value = getattr(self, name)
-            if type(value) is not type(locked) or value != locked:
-                raise BaselineEvidenceError(f"{name} must equal the locked M3 value {locked!r}")
+        if not isinstance(self.requested_model, str) or not self.requested_model.strip():
+            raise BaselineEvidenceError("requested_model must be an explicit non-empty identifier")
+        if self.requested_reasoning_effort is not None and (
+            not isinstance(self.requested_reasoning_effort, str)
+            or not self.requested_reasoning_effort.strip()
+        ):
+            raise BaselineEvidenceError(
+                "requested_reasoning_effort must be null or a non-empty capability value"
+            )
+        if self.model_selection_strategy not in MODEL_SELECTION_STRATEGIES:
+            raise BaselineEvidenceError(
+                "model_selection_strategy must use the provider-neutral vocabulary"
+            )
+        if self.routing_policy_version is not None and (
+            not isinstance(self.routing_policy_version, str)
+            or not self.routing_policy_version.strip()
+        ):
+            raise BaselineEvidenceError(
+                "routing_policy_version must be null or a non-empty identifier"
+            )
+        if self.context_strategy not in CONTEXT_STRATEGIES:
+            raise BaselineEvidenceError("context_strategy must use the canonical vocabulary")
+        for name in ("automatic_model_routing", "context_optimization"):
+            if type(getattr(self, name)) is not bool:
+                raise BaselineEvidenceError(f"{name} must be an explicit boolean")
+        if (
+            self.model_selection_strategy == "risk_routed"
+            or self.automatic_model_routing
+        ) and self.routing_policy_version is None:
+            raise BaselineEvidenceError(
+                "active or risk-routed model selection requires routing_policy_version"
+            )
 
     def report_value(self) -> dict[str, Any]:
         result = asdict(self)
@@ -214,7 +237,14 @@ def build_report(
         else None
     )
     dev_reports = [
-        _dev_report(task, levels[task], rows.get(task, []), outcomes.get(task), attempt_counts)
+        _dev_report(
+            task,
+            levels[task],
+            rows.get(task, []),
+            outcomes.get(task),
+            attempt_counts,
+            window,
+        )
         for task in sorted(window.included_dev_tasks)
     ]
     aggregate = _rollup(dev_reports, attempts_available)
@@ -368,9 +398,10 @@ def _dev_report(
     rows: list[dict[str, Any]],
     outcome: bool | None,
     attempts: Counter[str] | None,
+    window: MeasurementWindow,
 ) -> dict[str, Any]:
     usage = _usage_summary(rows)
-    profile_mismatches = sum(not _profile_matches(row) for row in rows)
+    profile_mismatches = sum(not _profile_matches(row, window) for row in rows)
     result: dict[str, Any] = {
         "dev_task": task,
         "traceability_level": level,
@@ -421,13 +452,13 @@ def _usage_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _profile_matches(row: Mapping[str, Any]) -> bool:
+def _profile_matches(row: Mapping[str, Any], window: MeasurementWindow) -> bool:
     return (
-        row["requested_model"] == "gpt-5.6-sol"
-        and row["requested_reasoning_effort"] == "medium"
-        and row["model_selection_strategy"] == "fixed"
-        and row["routing_policy_version"] is None
-        and row["context_strategy"] == "chat-heavy"
+        row["requested_model"] == window.requested_model
+        and row["requested_reasoning_effort"] == window.requested_reasoning_effort
+        and row["model_selection_strategy"] == window.model_selection_strategy
+        and row["routing_policy_version"] == window.routing_policy_version
+        and row["context_strategy"] == window.context_strategy
     )
 
 

@@ -5,8 +5,8 @@ title: AI-Native Software Design Factory Delivery Roadmap
 status: active
 version: 2
 owner: factory-maintainer
-last_updated: 2026-09-23
-change_owner: CTRL-CHANGE-007
+last_updated: 2026-09-24
+change_owner: CTRL-CHANGE-008
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -1118,11 +1118,20 @@ verification: TEST-012 VERIFIED
 live adoption gate: PASSED as a separately authorized PRE-WINDOW proof
 ```
 
+Delivered under CTRL-CHANGE-008:
+
+```text
+DEV-013 — provider-neutral measurement-contract correction
+status: IMPLEMENTED
+verification: TEST-013 VERIFIED
+scope: separate generic measurement validation from concrete treatment declaration
+```
+
 Current next decision:
 
 ```text
-prospective M3 measurement-window declaration and fixed task-set selection
-concrete next DEV: not yet selected
+Prospective M3 measurement-window declaration and real task-set selection.
+No DEV-014 or later task is selected.
 ```
 
 The initial Project Control Baseline remains established and active:
@@ -1149,3 +1158,12 @@ PRE-WINDOW live provider adoption proof passed and proves generic controlled-run
 operator adoption; it is not M3 baseline evidence. The actual M3 measurement window
 has not started, the cost-control baseline is not yet proven, the exact M3 token KPI
 is not decision-eligible, and M4 remains planned and unauthorized.
+
+CTRL-CHANGE-008 delivers the provider-neutrality correction in ADR-008 / DEV-013 /
+TEST-013 before any M3 window declaration. It preserves the current intended M3
+GPT-5.6 Sol / medium treatment as declaration data rather than a generic engine
+invariant. It does not rebaseline the project, start the M3 measurement window,
+prove the cost-control baseline, make the exact token KPI decision-eligible, start
+M4, or deliver a second provider runtime. The next decision is the prospective M3
+measurement-window declaration and real task-set selection; no DEV-014 or later task
+is selected.

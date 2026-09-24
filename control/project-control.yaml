@@ -4,8 +4,8 @@ title: AI-Native Software Design Factory Project Control
 status: active
 version: 1
 owner: factory-maintainer
-last_updated: "2026-09-23"
-change_owner: CTRL-CHANGE-007
+last_updated: "2026-09-24"
+change_owner: CTRL-CHANGE-008
 
 project:
   id: ai_sdf
@@ -99,9 +99,11 @@ milestones:
       dev:
         - DEV-011
         - DEV-012
+        - DEV-013
       verification:
         - TEST-011
         - TEST-012
+        - TEST-013
   M4:
     title: Efficient Context
     phase: phase-1.1

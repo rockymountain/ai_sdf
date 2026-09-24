@@ -197,7 +197,7 @@ class CostBaselineTests(unittest.TestCase):
         connection.commit()
         connection.close()
 
-    def test_window_records_the_locked_profile_and_explicit_boundary(self):
+    def test_window_records_the_current_m3_treatment_and_explicit_boundary(self):
         value = self.window().report_value()
         self.assertEqual("gpt-5.6-sol", value["requested_model"])
         self.assertEqual("medium", value["requested_reasoning_effort"])
@@ -214,7 +214,7 @@ class CostBaselineTests(unittest.TestCase):
             value["evidence_boundary"],
         )
 
-    def test_every_locked_profile_field_must_be_explicit(self):
+    def test_every_treatment_field_must_be_explicit(self):
         required = (
             "requested_model",
             "requested_reasoning_effort",
@@ -232,18 +232,47 @@ class CostBaselineTests(unittest.TestCase):
             ):
                 MeasurementWindow.from_mapping(declaration)
 
-    def test_window_rejects_any_profile_drift(self):
-        for field, value in (
-            ("requested_model", "other"),
-            ("requested_reasoning_effort", "high"),
-            ("model_selection_strategy", "manual"),
-            ("routing_policy_version", "route-1"),
-            ("context_strategy", "manual-context-pack"),
-            ("automatic_model_routing", True),
-            ("context_optimization", True),
-        ):
+    def test_provider_neutral_treatment_accepts_synthetic_model_and_absent_reasoning(self):
+        value = self.window(
+            requested_model="synthetic-provider-model",
+            requested_reasoning_effort=None,
+            model_selection_strategy="manual",
+            context_strategy="other",
+            context_optimization=True,
+        ).report_value()
+        self.assertEqual("synthetic-provider-model", value["requested_model"])
+        self.assertIsNone(value["requested_reasoning_effort"])
+        self.assertEqual("manual", value["model_selection_strategy"])
+        self.assertEqual("other", value["context_strategy"])
+        self.assertTrue(value["context_optimization"])
+
+    def test_treatment_fields_use_generic_provider_neutral_validation(self):
+        invalid = (
+            ("requested_model", ""),
+            ("requested_model", None),
+            ("requested_reasoning_effort", ""),
+            ("requested_reasoning_effort", 1),
+            ("model_selection_strategy", "provider-default"),
+            ("routing_policy_version", ""),
+            ("context_strategy", "provider-context"),
+            ("automatic_model_routing", 1),
+            ("context_optimization", "false"),
+        )
+        for field, value in invalid:
             with self.subTest(field=field), self.assertRaises(BaselineEvidenceError):
                 self.window(**{field: value})
+
+        with self.assertRaisesRegex(BaselineEvidenceError, "routing_policy_version"):
+            self.window(model_selection_strategy="risk_routed")
+        with self.assertRaisesRegex(BaselineEvidenceError, "routing_policy_version"):
+            self.window(automatic_model_routing=True)
+
+        routed = self.window(
+            model_selection_strategy="risk_routed",
+            routing_policy_version="policy-1",
+            automatic_model_routing=True,
+        ).report_value()
+        self.assertEqual("policy-1", routed["routing_policy_version"])
 
     def test_window_requires_explicit_task_and_trace_mixes(self):
         with self.assertRaisesRegex(BaselineEvidenceError, "task_mix"):
@@ -491,6 +520,39 @@ class CostBaselineTests(unittest.TestCase):
         self.assertEqual("incomplete", dev["profile_consistency"])
         self.assertEqual(1, dev["observed_model"]["unknown_count"])
         self.assertEqual("unavailable", self.report()["aggregate"]["metrics"]["total_tokens_per_accepted_dev"]["status"])
+
+    def test_profile_consistency_is_relative_to_the_declared_window_treatment(self):
+        window = self.window(
+            requested_model="synthetic-A",
+            requested_reasoning_effort=None,
+            context_strategy="other",
+        )
+        self.invocation(
+            requested_model="synthetic-A",
+            requested_reasoning_effort=None,
+            context_strategy="other",
+        )
+        self.outcome()
+        matching = self.report(window)["dev_tasks"][0]
+        self.assertEqual("consistent", matching["profile_consistency"])
+        self.assertEqual(
+            "exact",
+            self.report(window)["aggregate"]["metrics"]["total_tokens_per_accepted_dev"]["status"],
+        )
+
+        connection = sqlite3.connect(self.database)
+        connection.execute(
+            "UPDATE invocations SET requested_model='synthetic-B' WHERE invocation_id='inv-1'"
+        )
+        connection.commit()
+        connection.close()
+        drifted = self.report(window)["dev_tasks"][0]
+        self.assertEqual("incomplete", drifted["profile_consistency"])
+        self.assertEqual(1, drifted["profile_mismatch_count"])
+        self.assertEqual(
+            "unavailable",
+            self.report(window)["aggregate"]["metrics"]["total_tokens_per_accepted_dev"]["status"],
+        )
 
     def test_report_has_no_file_count_proxy_or_m4_conclusion(self):
         self.invocation()
