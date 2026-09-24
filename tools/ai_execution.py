@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from ai_execution.codex_adapter import CodexRuntimeAdapter  # noqa: E402
+from ai_execution.claude_adapter import ClaudeRuntimeAdapter  # noqa: E402
 from ai_execution.execution import BoundedExecutionController  # noqa: E402
 from ai_execution.gateway import ControlledInvocationGateway  # noqa: E402
 from ai_execution.model import (  # noqa: E402
@@ -107,6 +108,10 @@ def _routing_policy(value: str) -> str | None:
     return None if value == "none" else value
 
 
+def _reasoning_effort(value: str) -> str | None:
+    return None if value == "none" else value
+
+
 def _human_authorization(args: argparse.Namespace, *, required: bool) -> HumanAuthorization | None:
     values = (
         args.authorization_actor,
@@ -147,7 +152,7 @@ def controlled_invocation(args: argparse.Namespace) -> ControlledAIInvocation:
         routing_policy_version=_routing_policy(args.routing_policy_version),
         context_strategy=ContextStrategy(args.context_strategy),
         requested_model=args.requested_model,
-        requested_reasoning_effort=args.requested_reasoning_effort,
+        requested_reasoning_effort=_reasoning_effort(args.requested_reasoning_effort),
         reservation_id=args.reservation_id,
         candidate_attempt_number=args.candidate_attempt_number,
         attempt_number=args.attempt_number,
@@ -180,9 +185,8 @@ def invoke_controlled(args: argparse.Namespace) -> int:
     repo = args.repo.resolve()
     store = store_for(args)
     invocation = controlled_invocation(args)
-    outcome = ControlledInvocationGateway(
-        repo, store, CodexRuntimeAdapter(repo=str(repo))
-    ).invoke(invocation, args.input)
+    runtime = runtime_adapter(args, repo)
+    outcome = ControlledInvocationGateway(repo, store, runtime).invoke(invocation, args.input)
     report = {
         "invocation_id": invocation.invocation_id,
         "terminal_status": outcome.terminal_status.value,
@@ -197,6 +201,22 @@ def invoke_controlled(args: argparse.Namespace) -> int:
         report["authorization"] = store.nonimplementation_authorization(invocation.invocation_id)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if outcome.terminal_status is TerminalStatus.success else 1
+
+
+def runtime_adapter(args: argparse.Namespace, repo: Path):
+    """Resolve only the operator's explicit supported adapter identifier."""
+    if args.runtime_adapter == "codex":
+        if args.claude_executable is not None:
+            raise ValueError("--claude-executable is valid only with --runtime-adapter claude")
+        return CodexRuntimeAdapter(repo=str(repo))
+    if args.runtime_adapter == "claude":
+        if not args.claude_executable:
+            raise ValueError("Claude selection requires --claude-executable")
+        return ClaudeRuntimeAdapter(
+            repo=str(repo),
+            executable=args.claude_executable,
+        )
+    raise ValueError(f"unsupported runtime adapter: {args.runtime_adapter}")
 
 
 def close_checkpoint(args: argparse.Namespace) -> int:
@@ -315,10 +335,24 @@ def parser() -> argparse.ArgumentParser:
     invoke_parser.add_argument("--invocation-id", required=True)
     invoke_parser.add_argument("--source-revision", required=True)
     invoke_parser.add_argument(
+        "--runtime-adapter",
+        choices=("codex", "claude"),
+        default="codex",
+        help="explicit controlled runtime adapter; the backward-compatible default is codex",
+    )
+    invoke_parser.add_argument(
+        "--claude-executable",
+        help="explicit Claude Code executable path, required only for the claude adapter",
+    )
+    invoke_parser.add_argument(
         "--invocation-purpose", choices=tuple(item.value for item in InvocationPurpose), required=True
     )
     invoke_parser.add_argument("--requested-model", required=True)
-    invoke_parser.add_argument("--requested-reasoning-effort", required=True)
+    invoke_parser.add_argument(
+        "--requested-reasoning-effort",
+        required=True,
+        help="explicit capability value, or the literal 'none' for canonical null",
+    )
     invoke_parser.add_argument(
         "--model-selection-strategy",
         choices=tuple(item.value for item in ModelSelectionStrategy),

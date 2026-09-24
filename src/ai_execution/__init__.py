@@ -1,6 +1,7 @@
 """Provider-neutral bounded AI invocation telemetry for Phase 1.0."""
 
 from .gateway import ControlledInvocationGateway, InvocationOutcome, InvocationRejected
+from .claude_adapter import ClaudeRuntimeAdapter
 from .model import (
     ContextStrategy,
     ControlledAIInvocation,
@@ -25,6 +26,7 @@ from .store import TelemetryStore
 __all__ = [
     "AIRuntimePort",
     "CapabilityProfile",
+    "ClaudeRuntimeAdapter",
     "ContextStrategy",
     "ControlledAIInvocation",
     "ControlledInvocationGateway",

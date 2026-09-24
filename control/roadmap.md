@@ -6,7 +6,7 @@ status: active
 version: 2
 owner: factory-maintainer
 last_updated: 2026-09-24
-change_owner: CTRL-CHANGE-009
+change_owner: CTRL-CHANGE-010
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -1130,8 +1130,10 @@ scope: separate generic measurement validation from concrete treatment declarati
 Current next decision:
 
 ```text
-CTRL-CHANGE-009 quality-gate family design package retained and deferred.
-The prospective M3 fixed set is not declared.
+CTRL-CHANGE-010 dual-runtime controlled execution is delivered through DEV-017.
+The next decision remains the prospective M3 measurement-window declaration and
+real task-set selection. The fixed set remains undeclared and the measurement
+window is not started.
 ```
 
 Proposed review candidates:
@@ -1190,3 +1192,17 @@ strategy pivot. It does not accept the proposed ADRs, activate implementation,
 declare the prospective fixed set, start the M3 measurement window, count this design
 work as baseline evidence, rebaseline the project, or authorize M4. ADR-011 leaves
 review-evidence source selection as an explicit Project Owner decision.
+
+CTRL-CHANGE-010 delivers accepted FR-011, ADR-012, T2 DEV-017, and verified TEST-017:
+a controlled Claude adapter, explicit operator runtime selection, purpose-scoped
+measurement treatment, and provider-neutral usage normalization while preserving
+one DEV attribution and the unchanged `AIRuntimePort`. The separately authorized
+PRE-WINDOW adoption proof established Claude as controlled executor, including a
+governed implementation canary and exact prospective usage normalization, and Codex
+as independent read-only auditor. It introduced no automatic routing. The original
+Stage A unknown usage remains immutable, so the four-invocation PRE-WINDOW aggregate
+is incomplete; none of that proof counts as M3 baseline evidence. The change does
+not rebaseline the project, accept or activate the deferred CTRL-CHANGE-009 package,
+declare the M3 fixed set, start the M3 measurement window, prove the baseline, make
+exact token KPIs decision-eligible, or authorize M4. The next decision remains the
+prospective M3 measurement-window declaration and real task-set selection.

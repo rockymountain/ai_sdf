@@ -359,3 +359,37 @@ tasks:
         - knowledge/traceability.yaml
     verification:
       - TEST-016
+
+  DEV-017:
+    level: T2
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - FR-011
+      - NFR-002
+    design:
+      - CMP-003
+      - CMP-004
+    decisions:
+      - ADR-006
+      - ADR-007
+      - ADR-008
+      - ADR-012
+    implementation:
+      paths:
+        - design/requirements/FR-011.md
+        - design/architecture/CMP-003.md
+        - design/decisions/ADR-012.md
+        - design/tasks/DEV-017.md
+        - design/verification/TEST-017.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/__init__.py
+        - src/ai_execution/claude_adapter.py
+        - src/ai_execution/codex_adapter.py
+        - src/ai_execution/cost_baseline.py
+        - tools/ai_execution.py
+        - tools/traceability/tests/test_cost_baseline.py
+        - tools/traceability/tests/test_dual_runtime.py
+    verification:
+      - TEST-017

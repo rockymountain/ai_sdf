@@ -36,7 +36,7 @@ class _CodexHandle:
 class CodexRuntimeAdapter:
     """Map the stable public Codex Python SDK to AIRuntimePort semantics."""
 
-    adapter_name = "CodexRuntimeAdapter"
+    adapter_name = "codex"
     adapter_version = version("openai-codex")
 
     def __init__(self, *, repo: str, codex_factory: Callable[[], Any] = Codex):
@@ -192,6 +192,8 @@ def _map_breakdown(value: Any) -> UsageEvidence:
         return UsageEvidence.unknown()
     core = tuple(getattr(value, name, None) for name in ("input_tokens", "output_tokens", "total_tokens"))
     if any(type(item) is not int or item < 0 for item in core):
+        return UsageEvidence.unknown()
+    if core[2] != core[0] + core[1]:
         return UsageEvidence.unknown()
     return UsageEvidence.exact(
         core[0],

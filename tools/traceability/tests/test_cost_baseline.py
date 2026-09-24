@@ -44,14 +44,30 @@ class CostBaselineTests(unittest.TestCase):
                 "start_inclusive": "2026-01-01T00:00:00.000Z",
                 "end_exclusive": "2026-02-01T00:00:00.000Z",
             },
-            "requested_model": "gpt-5.6-sol",
-            "requested_reasoning_effort": "medium",
-            "model_selection_strategy": "fixed",
-            "routing_policy_version": None,
-            "context_strategy": "chat-heavy",
+            "purpose_treatments": {
+                "implementation": {
+                    "runtime_adapter": "codex",
+                    "requested_model": "gpt-5.6-sol",
+                    "requested_reasoning_effort": "medium",
+                    "model_selection_strategy": "fixed",
+                    "routing_policy_version": None,
+                    "context_strategy": "chat-heavy",
+                }
+            },
             "automatic_model_routing": False,
             "context_optimization": False,
         }
+        treatment_fields = {
+            "runtime_adapter",
+            "requested_model",
+            "requested_reasoning_effort",
+            "model_selection_strategy",
+            "routing_policy_version",
+            "context_strategy",
+        }
+        for key in tuple(changes):
+            if key in treatment_fields:
+                value["purpose_treatments"]["implementation"][key] = changes.pop(key)
         value.update(changes)
         return MeasurementWindow.from_mapping(value)
 
@@ -72,6 +88,7 @@ class CostBaselineTests(unittest.TestCase):
                 started_at TEXT NOT NULL,
                 completed_at TEXT,
                 invocation_purpose TEXT NOT NULL,
+                adapter_name TEXT,
                 terminal_status TEXT,
                 usage_status TEXT,
                 input_tokens INTEGER,
@@ -121,6 +138,7 @@ class CostBaselineTests(unittest.TestCase):
         started_at="2026-01-15T00:00:00.000Z",
         completed_at="2026-01-15T00:01:00.000Z",
         purpose="implementation",
+        runtime_adapter="codex",
         terminal="success",
         usage="exact",
         tokens=(10, 5, 15),
@@ -137,7 +155,7 @@ class CostBaselineTests(unittest.TestCase):
         values.update(profile)
         connection = sqlite3.connect(self.database)
         connection.execute(
-            "INSERT INTO invocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO invocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 invocation_id,
                 dev_task,
@@ -145,6 +163,7 @@ class CostBaselineTests(unittest.TestCase):
                 started_at,
                 completed_at,
                 purpose,
+                runtime_adapter,
                 terminal,
                 usage,
                 *(tokens if usage == "exact" else (None, None, None)),
@@ -199,11 +218,13 @@ class CostBaselineTests(unittest.TestCase):
 
     def test_window_records_the_current_m3_treatment_and_explicit_boundary(self):
         value = self.window().report_value()
-        self.assertEqual("gpt-5.6-sol", value["requested_model"])
-        self.assertEqual("medium", value["requested_reasoning_effort"])
-        self.assertEqual("fixed", value["model_selection_strategy"])
-        self.assertIsNone(value["routing_policy_version"])
-        self.assertEqual("chat-heavy", value["context_strategy"])
+        treatment = value["purpose_treatments"]["implementation"]
+        self.assertEqual("codex", treatment["runtime_adapter"])
+        self.assertEqual("gpt-5.6-sol", treatment["requested_model"])
+        self.assertEqual("medium", treatment["requested_reasoning_effort"])
+        self.assertEqual("fixed", treatment["model_selection_strategy"])
+        self.assertIsNone(treatment["routing_policy_version"])
+        self.assertEqual("chat-heavy", treatment["context_strategy"])
         self.assertFalse(value["automatic_model_routing"])
         self.assertFalse(value["context_optimization"])
         self.assertEqual(
@@ -215,12 +236,21 @@ class CostBaselineTests(unittest.TestCase):
         )
 
     def test_every_treatment_field_must_be_explicit(self):
-        required = (
+        treatment_required = (
+            "runtime_adapter",
             "requested_model",
             "requested_reasoning_effort",
             "model_selection_strategy",
             "routing_policy_version",
             "context_strategy",
+        )
+        for field in treatment_required:
+            declaration = self.window().report_value()
+            del declaration["purpose_treatments"]["implementation"][field]
+            with self.subTest(field=field), self.assertRaises(BaselineEvidenceError):
+                MeasurementWindow.from_mapping(declaration)
+        required = (
+            "purpose_treatments",
             "automatic_model_routing",
             "context_optimization",
         )
@@ -240,10 +270,11 @@ class CostBaselineTests(unittest.TestCase):
             context_strategy="other",
             context_optimization=True,
         ).report_value()
-        self.assertEqual("synthetic-provider-model", value["requested_model"])
-        self.assertIsNone(value["requested_reasoning_effort"])
-        self.assertEqual("manual", value["model_selection_strategy"])
-        self.assertEqual("other", value["context_strategy"])
+        treatment = value["purpose_treatments"]["implementation"]
+        self.assertEqual("synthetic-provider-model", treatment["requested_model"])
+        self.assertIsNone(treatment["requested_reasoning_effort"])
+        self.assertEqual("manual", treatment["model_selection_strategy"])
+        self.assertEqual("other", treatment["context_strategy"])
         self.assertTrue(value["context_optimization"])
 
     def test_treatment_fields_use_generic_provider_neutral_validation(self):
@@ -272,7 +303,10 @@ class CostBaselineTests(unittest.TestCase):
             routing_policy_version="policy-1",
             automatic_model_routing=True,
         ).report_value()
-        self.assertEqual("policy-1", routed["routing_policy_version"])
+        self.assertEqual(
+            "policy-1",
+            routed["purpose_treatments"]["implementation"]["routing_policy_version"],
+        )
 
     def test_window_requires_explicit_task_and_trace_mixes(self):
         with self.assertRaisesRegex(BaselineEvidenceError, "task_mix"):

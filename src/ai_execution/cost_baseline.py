@@ -14,10 +14,10 @@ from typing import Any, Mapping
 
 import yaml
 
-from .model import ContextStrategy, ModelSelectionStrategy
+from .model import ContextStrategy, InvocationPurpose, ModelSelectionStrategy
 
 
-REPORT_SCHEMA_VERSION = 1
+REPORT_SCHEMA_VERSION = 2
 SUPPORTED_EVIDENCE_SCHEMA_VERSIONS = {2, 3}
 TRACE_LEVELS = ("T0", "T1", "T2")
 TOKEN_FIELDS = ("input_tokens", "output_tokens", "total_tokens")
@@ -62,6 +62,69 @@ class EvidenceBoundary:
 
 
 @dataclass(frozen=True)
+class PurposeTreatment:
+    """One explicit runtime/profile treatment bound to an invocation purpose."""
+
+    runtime_adapter: str
+    requested_model: str
+    requested_reasoning_effort: str | None
+    model_selection_strategy: str
+    routing_policy_version: str | None
+    context_strategy: str
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "PurposeTreatment":
+        required = {
+            "runtime_adapter",
+            "requested_model",
+            "requested_reasoning_effort",
+            "model_selection_strategy",
+            "routing_policy_version",
+            "context_strategy",
+        }
+        if not isinstance(value, Mapping) or set(value) != required:
+            raise BaselineEvidenceError(
+                "each purpose treatment must explicitly declare runtime_adapter and all profile fields"
+            )
+        treatment = cls(**{name: value[name] for name in required})
+        treatment.validate()
+        return treatment
+
+    def validate(self) -> None:
+        if not isinstance(self.runtime_adapter, str) or not self.runtime_adapter.strip():
+            raise BaselineEvidenceError("runtime_adapter must be an explicit non-empty identifier")
+        if not isinstance(self.requested_model, str) or not self.requested_model.strip():
+            raise BaselineEvidenceError("requested_model must be an explicit non-empty identifier")
+        if self.requested_reasoning_effort is not None and (
+            not isinstance(self.requested_reasoning_effort, str)
+            or not self.requested_reasoning_effort.strip()
+        ):
+            raise BaselineEvidenceError(
+                "requested_reasoning_effort must be null or a non-empty capability value"
+            )
+        if self.model_selection_strategy not in MODEL_SELECTION_STRATEGIES:
+            raise BaselineEvidenceError(
+                "model_selection_strategy must use the provider-neutral vocabulary"
+            )
+        if self.routing_policy_version is not None and (
+            not isinstance(self.routing_policy_version, str)
+            or not self.routing_policy_version.strip()
+        ):
+            raise BaselineEvidenceError(
+                "routing_policy_version must be null or a non-empty identifier"
+            )
+        if self.context_strategy not in CONTEXT_STRATEGIES:
+            raise BaselineEvidenceError("context_strategy must use the canonical vocabulary")
+        if (
+            self.model_selection_strategy == "risk_routed"
+            and self.routing_policy_version is None
+        ):
+            raise BaselineEvidenceError(
+                "risk-routed model selection requires routing_policy_version"
+            )
+
+
+@dataclass(frozen=True)
 class MeasurementWindow:
     """The explicit, fixed control window used by an M3 report."""
 
@@ -72,17 +135,16 @@ class MeasurementWindow:
     review_policy: str
     acceptance_policy: str
     evidence_boundary: EvidenceBoundary
-    requested_model: str
-    requested_reasoning_effort: str | None
-    model_selection_strategy: str
-    routing_policy_version: str | None
-    context_strategy: str
+    purpose_treatments: Mapping[str, PurposeTreatment]
     automatic_model_routing: bool
     context_optimization: bool
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "MeasurementWindow":
         try:
+            raw_treatments = value["purpose_treatments"]
+            if not isinstance(raw_treatments, Mapping):
+                raise BaselineEvidenceError("purpose_treatments must be a mapping")
             window = cls(
                 id=value["id"],
                 included_dev_tasks=tuple(value["included_dev_tasks"]),
@@ -91,11 +153,10 @@ class MeasurementWindow:
                 review_policy=value["review_policy"],
                 acceptance_policy=value["acceptance_policy"],
                 evidence_boundary=EvidenceBoundary.from_mapping(value["evidence_boundary"]),
-                requested_model=value["requested_model"],
-                requested_reasoning_effort=value["requested_reasoning_effort"],
-                model_selection_strategy=value["model_selection_strategy"],
-                routing_policy_version=value["routing_policy_version"],
-                context_strategy=value["context_strategy"],
+                purpose_treatments={
+                    purpose: PurposeTreatment.from_mapping(treatment)
+                    for purpose, treatment in raw_treatments.items()
+                },
                 automatic_model_routing=value["automatic_model_routing"],
                 context_optimization=value["context_optimization"],
             )
@@ -121,35 +182,25 @@ class MeasurementWindow:
         if set(self.trace_level_mix) != set(TRACE_LEVELS):
             raise BaselineEvidenceError("trace_level_mix must declare T0, T1, and T2")
         _validate_mix("trace_level_mix", self.trace_level_mix, len(self.included_dev_tasks))
-        if not isinstance(self.requested_model, str) or not self.requested_model.strip():
-            raise BaselineEvidenceError("requested_model must be an explicit non-empty identifier")
-        if self.requested_reasoning_effort is not None and (
-            not isinstance(self.requested_reasoning_effort, str)
-            or not self.requested_reasoning_effort.strip()
-        ):
-            raise BaselineEvidenceError(
-                "requested_reasoning_effort must be null or a non-empty capability value"
-            )
-        if self.model_selection_strategy not in MODEL_SELECTION_STRATEGIES:
-            raise BaselineEvidenceError(
-                "model_selection_strategy must use the provider-neutral vocabulary"
-            )
-        if self.routing_policy_version is not None and (
-            not isinstance(self.routing_policy_version, str)
-            or not self.routing_policy_version.strip()
-        ):
-            raise BaselineEvidenceError(
-                "routing_policy_version must be null or a non-empty identifier"
-            )
-        if self.context_strategy not in CONTEXT_STRATEGIES:
-            raise BaselineEvidenceError("context_strategy must use the canonical vocabulary")
+        if not isinstance(self.purpose_treatments, Mapping) or not self.purpose_treatments:
+            raise BaselineEvidenceError("purpose_treatments must explicitly declare at least one purpose")
+        valid_purposes = {purpose.value for purpose in InvocationPurpose}
+        if any(purpose not in valid_purposes for purpose in self.purpose_treatments):
+            raise BaselineEvidenceError("purpose_treatments contains an unsupported invocation purpose")
+        for treatment in self.purpose_treatments.values():
+            if not isinstance(treatment, PurposeTreatment):
+                raise BaselineEvidenceError("purpose_treatments must contain structured treatments")
+            treatment.validate()
         for name in ("automatic_model_routing", "context_optimization"):
             if type(getattr(self, name)) is not bool:
                 raise BaselineEvidenceError(f"{name} must be an explicit boolean")
         if (
-            self.model_selection_strategy == "risk_routed"
-            or self.automatic_model_routing
-        ) and self.routing_policy_version is None:
+            self.automatic_model_routing
+            and any(
+                treatment.routing_policy_version is None
+                for treatment in self.purpose_treatments.values()
+            )
+        ):
             raise BaselineEvidenceError(
                 "active or risk-routed model selection requires routing_policy_version"
             )
@@ -160,6 +211,10 @@ class MeasurementWindow:
         result["task_mix"] = dict(sorted(self.task_mix.items()))
         result["trace_level_mix"] = {
             level: self.trace_level_mix[level] for level in TRACE_LEVELS
+        }
+        result["purpose_treatments"] = {
+            purpose: asdict(self.purpose_treatments[purpose])
+            for purpose in sorted(self.purpose_treatments)
         }
         return result
 
@@ -401,7 +456,9 @@ def _dev_report(
     window: MeasurementWindow,
 ) -> dict[str, Any]:
     usage = _usage_summary(rows)
-    profile_mismatches = sum(not _profile_matches(row, window) for row in rows)
+    row_mismatches = [_profile_mismatch_fields(row, window) for row in rows]
+    mismatch_fields = [field for fields in row_mismatches for field in fields]
+    profile_mismatches = sum(bool(fields) for fields in row_mismatches)
     result: dict[str, Any] = {
         "dev_task": task,
         "traceability_level": level,
@@ -409,6 +466,7 @@ def _dev_report(
         **usage,
         "profile_consistency": "consistent" if rows and profile_mismatches == 0 else "incomplete",
         "profile_mismatch_count": profile_mismatches,
+        "profile_mismatch_reasons": dict(sorted(Counter(mismatch_fields).items())),
         "invocation_purposes": dict(sorted(Counter(
             row["invocation_purpose"] for row in rows
         ).items())),
@@ -421,6 +479,8 @@ def _dev_report(
         },
         "attempt_count": attempts[task] if attempts is not None else None,
         "attempt_evidence": "available" if attempts is not None else "unavailable_legacy_schema_v2",
+        "by_invocation_purpose": _usage_breakdown(rows, "invocation_purpose", "runtime_adapters"),
+        "by_runtime_adapter": _usage_breakdown(rows, "adapter_name", "invocation_purposes"),
     }
     return result
 
@@ -433,6 +493,10 @@ def _usage_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if status == "exact":
             if any(type(row.get(field)) is not int or row[field] < 0 for field in TOKEN_FIELDS):
                 raise BaselineEvidenceError(f"malformed exact usage for {row['invocation_id']}")
+            if row["total_tokens"] != row["input_tokens"] + row["output_tokens"]:
+                raise BaselineEvidenceError(
+                    f"inconsistent exact canonical usage for {row['invocation_id']}"
+                )
             exact.append(row)
         elif status in (None, "unknown"):
             unknown.append(row)
@@ -452,14 +516,49 @@ def _usage_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _profile_matches(row: Mapping[str, Any], window: MeasurementWindow) -> bool:
-    return (
-        row["requested_model"] == window.requested_model
-        and row["requested_reasoning_effort"] == window.requested_reasoning_effort
-        and row["model_selection_strategy"] == window.model_selection_strategy
-        and row["routing_policy_version"] == window.routing_policy_version
-        and row["context_strategy"] == window.context_strategy
-    )
+def _profile_mismatch_fields(
+    row: Mapping[str, Any], window: MeasurementWindow
+) -> tuple[str, ...]:
+    purpose = row.get("invocation_purpose")
+    treatment = window.purpose_treatments.get(purpose)
+    if treatment is None:
+        return ("undeclared_purpose",)
+    if not row.get("adapter_name"):
+        mismatches = ["runtime_adapter_missing"]
+    else:
+        mismatches = []
+    fields = {
+        "runtime_adapter": "adapter_name",
+        "requested_model": "requested_model",
+        "requested_reasoning_effort": "requested_reasoning_effort",
+        "model_selection_strategy": "model_selection_strategy",
+        "routing_policy_version": "routing_policy_version",
+        "context_strategy": "context_strategy",
+    }
+    for treatment_field, row_field in fields.items():
+        if getattr(treatment, treatment_field) != row.get(row_field):
+            mismatches.append(treatment_field)
+    return tuple(mismatches)
+
+
+def _usage_breakdown(
+    rows: list[dict[str, Any]], group_field: str, cross_label: str
+) -> dict[str, dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        key = row.get(group_field)
+        key = key if isinstance(key, str) and key else "unknown"
+        grouped.setdefault(key, []).append(row)
+    cross_field = "adapter_name" if group_field == "invocation_purpose" else "invocation_purpose"
+    result: dict[str, dict[str, Any]] = {}
+    for key, values in sorted(grouped.items()):
+        result[key] = {
+            **_usage_summary(values),
+            cross_label: dict(sorted(Counter(
+                row.get(cross_field) or "unknown" for row in values
+            ).items())),
+        }
+    return result
 
 
 def _rollup(dev_reports: list[dict[str, Any]], attempts_available: bool) -> dict[str, Any]:
