@@ -5,7 +5,7 @@ status: active
 version: 1
 owner: factory-maintainer
 last_updated: "2026-09-25"
-change_owner: CTRL-CHANGE-011
+change_owner: CTRL-CHANGE-012
 
 project:
   id: ai_sdf
@@ -56,6 +56,45 @@ control_position:
     dev_task: null
     status: planned
   current_decision:
+    change_owner: CTRL-CHANGE-012
+    subject: separate the M4 context-effect KPI from delivery-accounting token totals
+    status: complete
+    disposition: delivered
+    owner_acceptance:
+      reference: OWNER-ACCEPT-CTRL-CHANGE-012-2026-09-25
+      accepted_on: "2026-09-25"
+    audit:
+      independent_codex_verdict: ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS
+      material_blockers_remaining: false
+    reason: >-
+      With Claude and Codex both live as controlled adapters (CTRL-CHANGE-010) and
+      corrected for runtime-version provenance (CTRL-CHANGE-011), reusing the
+      existing all-attributable, mixed-provider delivery-accounting metric
+      (input_tokens_per_accepted_dev) as if it were the non-canonical Phase-1
+      plan's M4 Graphify/context-treatment gate would conflate two different
+      questions and risk a wrong future M4 decision. T2 ADR-013 / DEV-019 /
+      TEST-019 introduce a separately named, separately structured M4
+      context-effect KPI (src/ai_execution/context_effect.py) with a predeclared
+      accepted-DEV cohort, deterministic evidence-backed compatibility evaluation
+      (observed model/runtime version, never requested model alone), and three
+      independently represented signals: effect_metric_calculable,
+      effect_gate_result (exact-arithmetic >= 70% threshold), and
+      treatment_decision_eligible (requires a declared GuardrailContract, which
+      this change does not populate with any real M4 guardrail set). Existing
+      cost_baseline.py delivery-accounting metrics and REPORT_SCHEMA_VERSION are
+      unmodified. No compatibility rule for any real Claude or OpenAI runtime
+      version is shipped; only the deterministic mechanism, exercised by synthetic
+      fixtures. AIRuntimePort, the gateway, controller, and operational schema are
+      unchanged.
+    measurement_status: PRE-WINDOW
+    evidence:
+      decisions:
+        - ADR-013
+      dev:
+        - DEV-019
+      verification:
+        - TEST-019
+  prior_delivered_decision:
     change_owner: CTRL-CHANGE-011
     subject: Claude runtime-version provenance correction
     status: complete
@@ -63,56 +102,32 @@ control_position:
     reason: >-
       An independent post-closure Codex audit of CTRL-CHANGE-010 found that
       production Claude execution did not record the runtime version required by
-      accepted FR-006: the operator constructed ClaudeRuntimeAdapter without one,
-      retained Claude PRE-WINDOW proof rows record runtime_version null, and
-      deterministic verification accepted that null state. T1 DEV-018 / TEST-018
-      restored conformance prospectively by recording the declared executable's own
-      --version output and failing closed before provider start when it cannot be
-      observed. A second independent Codex re-audit then found the first DEV-018
-      implementation itself violated accepted FR-007: it resolved runtime version in
-      the operator, before ControlledInvocationGateway.invoke(), so a discovery
-      failure for an implementation invocation bypassed RuntimeStartControl/start
-      evidence and stranded an existing RESERVED reservation instead of releasing
-      it. The correction moved discovery inside ClaudeRuntimeAdapter.start(),
-      reusing the adapter's existing pre-start try/except and the
-      gateway/controller's existing reservation-release machinery unchanged, so a
-      discovery failure now releases an implementation reservation
-      (RESERVED -> RELEASED) without consuming an attempt and the candidate slot
-      remains reusable. The re-audit returned
+      accepted FR-006. A second independent Codex re-audit then found the first
+      DEV-018 implementation itself violated accepted FR-007 reservation
+      semantics; the correction moved version discovery inside
+      ClaudeRuntimeAdapter.start(), reusing existing gateway/controller
+      reservation-release machinery unchanged. The re-audit returned
       ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers, and the
       Project Owner accepted the correction for closure. Historical Claude rows
       with runtime_version null remain immutable and are not backfilled.
-      AIRuntimePort, the operational schema, capability, routing, and Codex
-      runtime-version behavior are unchanged.
     measurement_status: PRE-WINDOW
-    audit:
-      first_reaudit_verdict: incomplete_FR-007_reservation_semantics
-      second_reaudit_verdict: ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS
-      material_blockers_remaining: false
     evidence:
       dev:
         - DEV-018
       verification:
         - TEST-018
-  prior_delivered_decision:
-    change_owner: CTRL-CHANGE-010
-    subject: dual-runtime controlled execution and purpose-scoped M3 treatment
-    status: complete
-    disposition: delivered
-    reason: >-
-      The Project Owner accepted deterministic TEST-017 and the separately
-      authorized PRE-WINDOW adoption proof, delivering Claude as controlled
-      executor, Codex as independent read-only auditor, purpose-scoped
-      measurement, and provider-neutral usage normalization without changing
-      AIRuntimePort or introducing automatic routing. No PRE-WINDOW proof counts
-      as M3 baseline evidence.
-    measurement_status: PRE-WINDOW
-    post_closure_finding:
-      source: independent_codex_audit
-      finding: incomplete_claude_runtime_version_provenance
-      correction_owner: CTRL-CHANGE-011
-      correction_status: resolved
-      historical_evidence_rewritten: false
+    previous:
+      change_owner: CTRL-CHANGE-010
+      subject: dual-runtime controlled execution and purpose-scoped M3 treatment
+      status: complete
+      disposition: delivered
+      measurement_status: PRE-WINDOW
+      post_closure_finding:
+        source: independent_codex_audit
+        finding: incomplete_claude_runtime_version_provenance
+        correction_owner: CTRL-CHANGE-011
+        correction_status: resolved
+        historical_evidence_rewritten: false
   retained_deferred_decision:
     change_owner: CTRL-CHANGE-009
     subject: quality-gate family intent/design package

@@ -416,3 +416,23 @@ tasks:
         - tools/traceability/tests/test_dual_runtime.py
     verification:
       - TEST-018
+
+  DEV-019:
+    level: T2
+    intent:
+      - FR-006
+      - FR-011
+    design:
+      - CMP-003
+    decisions:
+      - ADR-013
+    implementation:
+      paths:
+        - design/decisions/ADR-013.md
+        - design/tasks/DEV-019.md
+        - design/verification/TEST-019.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/context_effect.py
+        - tools/traceability/tests/test_context_effect.py
+    verification:
+      - TEST-019

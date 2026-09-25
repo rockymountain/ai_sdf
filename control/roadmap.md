@@ -5,8 +5,8 @@ title: AI-Native Software Design Factory Delivery Roadmap
 status: active
 version: 2
 owner: factory-maintainer
-last_updated: 2026-09-24
-change_owner: CTRL-CHANGE-011
+last_updated: 2026-09-25
+change_owner: CTRL-CHANGE-012
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -1133,10 +1133,14 @@ Current next decision:
 CTRL-CHANGE-010 dual-runtime controlled execution is delivered through DEV-017.
 CTRL-CHANGE-011 corrects a post-closure Claude runtime-version provenance defect
 through T1 DEV-018 / TEST-018, delivered and closed after a second independent
-Codex re-audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS. The next decision
-remains the prospective M3 measurement-window declaration and real task-set
-selection. The fixed set remains undeclared and the measurement window is not
-started.
+Codex re-audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS.
+CTRL-CHANGE-012 separates the M4 context-effect KPI from delivery-accounting
+token totals through T2 ADR-013 / DEV-019 / TEST-019, delivered and closed
+under Owner acceptance reference OWNER-ACCEPT-CTRL-CHANGE-012-2026-09-25 after
+independent Codex audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS. The
+next decision remains the prospective M3 measurement-window declaration and
+real task-set selection. The fixed set remains undeclared and the measurement
+window is not started.
 ```
 
 Proposed review candidates:
@@ -1241,3 +1245,41 @@ corrective work and do not count as M3 baseline evidence. CTRL-CHANGE-010 remain
 unrewritten delivered history. DEV-014/015/016 remain proposed/deferred with no
 implementation authority, the M3 fixed set remains undeclared, the measurement
 window remains not started, and M4 remains unauthorized.
+
+CTRL-CHANGE-012 is an Owner-approved, prospective correction to how the M4
+context-effect KPI is defined, made before any M3 measurement window exists. The
+non-canonical Phase-1 plan (§7.1/§14.1) named "average input tokens per accepted
+DEV task" as the M4 Graphify/context-treatment gate; with Claude and Codex both
+live as controlled adapters, reusing that all-attributable, mixed-provider
+delivery-accounting field as a provider-comparable context metric would silently
+conflate two different questions. T2 `ADR-013` / `DEV-019` / verified `TEST-019`
+introduce a distinct `context_effect` KPI
+(`src/ai_execution/context_effect.py`) with its own predeclared accepted-DEV
+cohort, deterministic evidence-backed compatibility evaluation against retained
+`observed_model`/`runtime_version` evidence (never requested identity alone), and
+three independently represented signals: `effect_metric_calculable`,
+`effect_gate_result` (exact-arithmetic `>= 70%` reduction threshold, carried
+forward from the Phase-1 plan's stated gate and made canonical by this decision),
+and `treatment_decision_eligible` (requires a declared `GuardrailContract`, which
+this change does not populate with any real M4 guardrail set). A passing gate
+never implies decision eligibility and a failing gate never implies
+ineligibility; only the Project Owner decides. `src/ai_execution/cost_baseline.py`
+— including `input_tokens_per_accepted_dev`, `total_tokens_per_accepted_dev`, and
+`REPORT_SCHEMA_VERSION` — is unmodified. No compatibility rule for any real Claude
+or OpenAI runtime version is shipped; TEST-019 exercises the mechanism with
+synthetic fixtures only. `AIRuntimePort`, the gateway, controller, and operational
+schema are unchanged. The change does not declare an M3 measurement window or
+fixed task set, execute any baseline task, activate DEV-014/015/016, authorize
+M4, or make any treatment-acceptance decision.
+
+An independent Codex audit reviewed the implementation across five rounds of
+bounded correction, returning `ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` on the
+final round with no remaining blockers. The Project Owner then explicitly
+accepted CTRL-CHANGE-012 under acceptance reference
+`OWNER-ACCEPT-CTRL-CHANGE-012-2026-09-25`, closing it as delivered. That
+acceptance does not declare or start the M3 measurement window, declare the M3
+fixed DEV set, establish a real runtime/token compatibility rule or a real M4
+guardrail contract, accept any context treatment, authorize M4, or activate
+DEV-014/015/016. `ADR-013` remains `accepted`, `DEV-019` remains `implemented`,
+and `TEST-019` remains `verified`; none is promoted to a new status merely
+because CTRL-CHANGE-012 itself is delivered.
