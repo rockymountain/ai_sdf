@@ -5,7 +5,7 @@ status: active
 version: 1
 owner: factory-maintainer
 last_updated: "2026-09-25"
-change_owner: CTRL-CHANGE-012
+change_owner: CTRL-CHANGE-013
 
 project:
   id: ai_sdf
@@ -56,6 +56,55 @@ control_position:
     dev_task: null
     status: planned
   current_decision:
+    change_owner: CTRL-CHANGE-013
+    subject: >-
+      activate Increment A of the deferred CTRL-CHANGE-009 package — bind
+      QG-001/QG-002 declarations to existing CMP-002 enforcement
+    status: complete
+    disposition: delivered
+    owner_acceptance:
+      reference: OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25
+      accepted_on: "2026-09-25"
+      grants: implementation_authority_only
+    audit:
+      independent_codex_verdict: ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS
+      material_blockers_remaining: false
+      note: >-
+        Codex could not independently reproduce Claude's reported 311-test
+        full-suite result because its audit environment encountered Windows
+        Temp permission errors. The Project Owner accepted this as a
+        non-blocking audit-environment limitation, not as evidence of an
+        implementation test failure.
+    outcome_acceptance:
+      reference: OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25
+      accepted_on: "2026-09-25"
+      grants: implementation_outcome_and_closure_authority
+    reason: >-
+      The Project Owner accepted FR-008/ADR-009 (Increment A of the frozen
+      CTRL-CHANGE-009 quality-governance package) and authorized bounded T2
+      DEV-014 implementation: binding the canonical QG-001 (artifact-schema) and
+      QG-002 (reference-integrity) declarations to their existing, unchanged
+      CMP-002 enforcement paths via a new load_structural_gates check, applying
+      the ADR-004 base/proposed self-protection pattern at both the
+      workspace/proposed and base evaluation points. This activation is scoped to
+      Increment A only; it does not accept or activate FR-009/ADR-010/DEV-015
+      (Increment B) or FR-010/ADR-011/DEV-016 (Increment C), and leaves ADR-011's
+      evidence-source decision unresolved. An independent Codex audit returned
+      ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers, and the
+      Project Owner separately accepted the implementation outcome and
+      authorized closure under reference
+      OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25, distinct from the earlier
+      implementation-authority grant. Increment B (FR-009/ADR-010/DEV-015)
+      remains a separate future Owner decision, not activated by this closure.
+    measurement_status: PRE-WINDOW
+    evidence:
+      decisions:
+        - ADR-009
+      dev:
+        - DEV-014
+      verification:
+        - TEST-014
+  prior_delivered_decision:
     change_owner: CTRL-CHANGE-012
     subject: separate the M4 context-effect KPI from delivery-accounting token totals
     status: complete
@@ -94,40 +143,40 @@ control_position:
         - DEV-019
       verification:
         - TEST-019
-  prior_delivered_decision:
-    change_owner: CTRL-CHANGE-011
-    subject: Claude runtime-version provenance correction
-    status: complete
-    disposition: delivered
-    reason: >-
-      An independent post-closure Codex audit of CTRL-CHANGE-010 found that
-      production Claude execution did not record the runtime version required by
-      accepted FR-006. A second independent Codex re-audit then found the first
-      DEV-018 implementation itself violated accepted FR-007 reservation
-      semantics; the correction moved version discovery inside
-      ClaudeRuntimeAdapter.start(), reusing existing gateway/controller
-      reservation-release machinery unchanged. The re-audit returned
-      ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers, and the
-      Project Owner accepted the correction for closure. Historical Claude rows
-      with runtime_version null remain immutable and are not backfilled.
-    measurement_status: PRE-WINDOW
-    evidence:
-      dev:
-        - DEV-018
-      verification:
-        - TEST-018
     previous:
-      change_owner: CTRL-CHANGE-010
-      subject: dual-runtime controlled execution and purpose-scoped M3 treatment
+      change_owner: CTRL-CHANGE-011
+      subject: Claude runtime-version provenance correction
       status: complete
       disposition: delivered
+      reason: >-
+        An independent post-closure Codex audit of CTRL-CHANGE-010 found that
+        production Claude execution did not record the runtime version required
+        by accepted FR-006. A second independent Codex re-audit then found the
+        first DEV-018 implementation itself violated accepted FR-007 reservation
+        semantics; the correction moved version discovery inside
+        ClaudeRuntimeAdapter.start(), reusing existing gateway/controller
+        reservation-release machinery unchanged. The re-audit returned
+        ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers, and the
+        Project Owner accepted the correction for closure. Historical Claude rows
+        with runtime_version null remain immutable and are not backfilled.
       measurement_status: PRE-WINDOW
-      post_closure_finding:
-        source: independent_codex_audit
-        finding: incomplete_claude_runtime_version_provenance
-        correction_owner: CTRL-CHANGE-011
-        correction_status: resolved
-        historical_evidence_rewritten: false
+      evidence:
+        dev:
+          - DEV-018
+        verification:
+          - TEST-018
+      previous:
+        change_owner: CTRL-CHANGE-010
+        subject: dual-runtime controlled execution and purpose-scoped M3 treatment
+        status: complete
+        disposition: delivered
+        measurement_status: PRE-WINDOW
+        post_closure_finding:
+          source: independent_codex_audit
+          finding: incomplete_claude_runtime_version_provenance
+          correction_owner: CTRL-CHANGE-011
+          correction_status: resolved
+          historical_evidence_rewritten: false
   retained_deferred_decision:
     change_owner: CTRL-CHANGE-009
     subject: quality-gate family intent/design package
@@ -143,6 +192,17 @@ control_position:
       - DEV-014
       - DEV-015
       - DEV-016
+    historical_record_note: >-
+      This candidates list and candidate_lifecycle=proposed preserve the
+      original CTRL-CHANGE-009 PRE-WINDOW prospective-candidate record
+      unchanged; they are not the current lifecycle status of any listed task.
+      DEV-014 was subsequently implemented separately under CTRL-CHANGE-013
+      (see current_decision) as PRE-WINDOW governance-stabilization work; that
+      implementation does not add DEV-014 to the M3 fixed set or M3 baseline
+      cohort, which remain governed solely by status/disposition above.
+      DEV-015 and DEV-016 remain proposed with no implementation authority,
+      unchanged from this historical record. The M3 fixed set itself remains
+      not_yet_declared and the M3 measurement window has not started.
 
 capacity:
   human_focused:

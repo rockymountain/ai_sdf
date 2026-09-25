@@ -25,6 +25,7 @@ TASK_RE = re.compile(r"^DEV-[0-9]{3,}$")
 QG004_BOOTSTRAP_BASE = "972774f18b879d023eb005d1af021699ed6b4ed5"
 QG004_SCHEMA = "knowledge/schemas/implementation-evidence-gate.schema.json"
 AUTONOMOUS_EXECUTION_SCHEMA = "knowledge/schemas/autonomous-execution-policy.schema.json"
+STRUCTURAL_GATES = {"QG-001": "artifact-schema", "QG-002": "reference-integrity"}
 
 SCHEMA_BY_KIND = {
     "problem": "problem.schema.json",
@@ -94,6 +95,12 @@ class ImplementationEvidenceGate:
 
 
 @dataclass(frozen=True)
+class StructuralGate:
+    id: str
+    name: str
+
+
+@dataclass(frozen=True)
 class ChangeOwnerKind:
     id_pattern: str
     allowed_paths: tuple[str, ...]
@@ -150,6 +157,35 @@ def load_implementation_evidence_gate(repo: Path, ref: str | None = None) -> Imp
         )
     except (OSError, RuntimeError, ValueError, TypeError, KeyError, yaml.YAMLError, SchemaError) as exc:
         raise ValueError(f"QG-004 governance ({ref or 'workspace'}): {exc}") from exc
+
+
+def load_structural_gates(repo: Path, ref: str | None = None) -> tuple[StructuralGate, ...]:
+    """Bind QG-001/QG-002 as authoritative declarations for the existing artifact-schema
+    (scan_artifacts) and reference-integrity (validate_traceability) checks. Validates
+    only declaration identity, shape, and required presence; it does not duplicate or
+    reinterpret those existing substantive checks."""
+    try:
+        def read(path: str) -> str:
+            return git(repo, "show", f"{ref}:{path}") if ref else (repo / path).read_text(encoding="utf-8")
+
+        gates_doc = yaml.load(read("constitution/quality-gates.yaml"), Loader=GovernanceLoader)
+        if not isinstance(gates_doc, dict) or type(gates_doc.get("version")) is not int or gates_doc["version"] != 1:
+            raise ValueError("quality-gates.yaml requires version 1")
+        gates = gates_doc.get("gates")
+        if not isinstance(gates, list) or any(not isinstance(g, dict) or not isinstance(g.get("id"), str) for g in gates):
+            raise ValueError("gates must be a list of identified mappings")
+        ids = [g["id"] for g in gates]
+        resolved = []
+        for gate_id, name in STRUCTURAL_GATES.items():
+            if ids.count(gate_id) != 1:
+                raise ValueError(f"mandatory {gate_id} declaration is missing or duplicated")
+            gate = next(g for g in gates if g["id"] == gate_id)
+            if gate != {"id": gate_id, "name": name, "deterministic": True, "blocks_merge": True}:
+                raise ValueError(f"unsupported {gate_id} declaration shape")
+            resolved.append(StructuralGate(gate_id, name))
+        return tuple(resolved)
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, yaml.YAMLError) as exc:
+        raise ValueError(f"structural gate governance ({ref or 'workspace'}): {exc}") from exc
 
 
 def extract_frontmatter(path: Path) -> dict[str, Any]:
@@ -214,6 +250,11 @@ def implementation_path_resolves(repo: Path, pattern: str) -> bool:
 def validate_traceability(repo: Path, registry: dict[str, Artifact], result: ValidationErrorSet) -> dict[str, Any]:
     try:
         load_implementation_evidence_gate(repo)
+    except ValueError as exc:
+        result.error(str(exc))
+        return {}
+    try:
+        load_structural_gates(repo)
     except ValueError as exc:
         result.error(str(exc))
         return {}
@@ -503,6 +544,11 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
             load_implementation_evidence_gate(repo, base_ref),
             load_implementation_evidence_gate(repo),
         )))
+        # Evaluate both independently, mirroring evidence_gates above: proposed
+        # weakening cannot remove the base binding, and this function remains
+        # self-sufficient even when called without validate_traceability first.
+        load_structural_gates(repo, base_ref)
+        load_structural_gates(repo)
         messages = commit_messages(repo, base_ref, head_ref)
         base_messages = reachable_commit_messages(repo, base_ref)
         files = changed_files(repo, base_ref, head_ref)

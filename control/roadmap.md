@@ -6,7 +6,7 @@ status: active
 version: 2
 owner: factory-maintainer
 last_updated: 2026-09-25
-change_owner: CTRL-CHANGE-012
+change_owner: CTRL-CHANGE-013
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -1137,10 +1137,28 @@ Codex re-audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS.
 CTRL-CHANGE-012 separates the M4 context-effect KPI from delivery-accounting
 token totals through T2 ADR-013 / DEV-019 / TEST-019, delivered and closed
 under Owner acceptance reference OWNER-ACCEPT-CTRL-CHANGE-012-2026-09-25 after
-independent Codex audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS. The
-next decision remains the prospective M3 measurement-window declaration and
-real task-set selection. The fixed set remains undeclared and the measurement
-window is not started.
+independent Codex audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS.
+CTRL-CHANGE-013 activates and delivers Increment A of the deferred
+CTRL-CHANGE-009 package through T2 FR-008 / ADR-009 / DEV-014 / TEST-014.
+Implementation authority was granted under Owner reference
+OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25; an independent Codex audit
+returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers
+(Codex could not independently reproduce the reported 311-test full-suite
+result due to a Windows Temp permission limitation in its audit environment,
+accepted as a non-blocking audit-environment limitation rather than a test
+failure); the Project Owner then separately accepted the implementation
+outcome and authorized closure under Owner reference
+OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25, distinct from the earlier
+implementation-authority grant. CTRL-CHANGE-013 is delivered. Increments B
+(DEV-015) and C (DEV-016) remain proposed and unactivated. The next step is
+for the Project Owner to separately consider Increment B — FR-009 / ADR-010
+and possible bounded DEV-015 implementation authority — on its own terms;
+Increment B is not thereby accepted or automatically activated. Increment C
+(FR-010 / ADR-011 / DEV-016) remains a separate, later Owner decision. A
+prospective M3 measurement-window declaration and real fixed-set selection
+remain a distinct, later decision requiring its own explicit Owner authority;
+it is not implied by Increment A's delivery. The fixed set remains undeclared
+and the measurement window is not started.
 ```
 
 Proposed review candidates:
@@ -1151,12 +1169,15 @@ DEV-015 — make QG-003/QG-005 policy authoritative
 DEV-016 — enforce accountable QG-006 review evidence after source selection
 ```
 
-All three tasks remain PROPOSED and are preserved for possible future governance
-work. They are not accepted ADRs, active implementation authority, a declared M3
-fixed set, or M3 observations. The package was deferred because the execution
+The three-task package was deferred under CTRL-CHANGE-009 because the execution
 strategy pivoted before owner acceptance to validate purpose-scoped multi-runtime
 execution with Claude as controlled executor and Codex as independent read-only
-auditor. No measurement window, task-set boundary, or timestamp is declared.
+auditor; CTRL-CHANGE-009 itself remains deferred, not rejected or implemented, and
+is not retroactively rewritten as accepted or delivered. DEV-014 (Increment A) was
+subsequently activated separately under CTRL-CHANGE-013 — see below. DEV-015 and
+DEV-016 (Increments B and C) remain PROPOSED with no implementation authority. No
+measurement window, task-set boundary, or M3/M4 timestamp is declared by any of
+this.
 
 The initial Project Control Baseline remains established and active:
 
@@ -1283,3 +1304,37 @@ guardrail contract, accept any context treatment, authorize M4, or activate
 DEV-014/015/016. `ADR-013` remains `accepted`, `DEV-019` remains `implemented`,
 and `TEST-019` remains `verified`; none is promoted to a new status merely
 because CTRL-CHANGE-012 itself is delivered.
+
+CTRL-CHANGE-013 activates Increment A of the frozen CTRL-CHANGE-009
+quality-governance package — `FR-008` / `ADR-009` / `DEV-014` / `TEST-014` — under
+Owner acceptance reference `OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25`.
+`FR-008` and `ADR-009` are accepted; `DEV-014` binds the canonical `QG-001`
+(artifact-schema) and `QG-002` (reference-integrity) declarations to their
+existing, unchanged `CMP-002` enforcement paths through a new
+`load_structural_gates` check in `tools/traceability/validate.py`, reusing
+`scan_artifacts` and `validate_traceability` without a second schema or reference
+engine, and applying the `ADR-004` base/proposed self-protection pattern at both
+the workspace/proposed and base evaluation points. `TEST-014` is verified by
+`StructuralGateTests` in `tools/traceability/tests/test_quality_gate.py`. This
+activation is scoped to Increment A only: it does not accept `FR-009`/`ADR-010`
+(Increment B) or `FR-010`/`ADR-011` (Increment C), does not activate `DEV-015` or
+`DEV-016`, and leaves `ADR-011`'s evidence-source decision unresolved.
+`CTRL-CHANGE-009` remains the historical deferred package and is not rewritten as
+accepted, activated, or delivered. `DEV-014` is PRE-WINDOW governance-stabilization
+work: it is not part of the M3 baseline cohort, does not declare an M3 fixed set or
+measurement window, and does not authorize M4.
+
+An independent Codex audit of the DEV-014 implementation returned
+`ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` with no remaining blockers; Codex could
+not independently reproduce Claude's reported 311-test full-suite result because
+its audit environment encountered Windows Temp permission errors, which the
+Project Owner accepted as a non-blocking audit-environment limitation rather
+than evidence of an implementation test failure. The Project Owner then
+separately accepted the implementation outcome and authorized closure under
+reference `OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25`, distinct from the
+earlier `OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25`
+implementation-authority grant. `CTRL-CHANGE-013` is now `complete`/`delivered`.
+That closure does not accept, activate, or authorize Increment B
+(`FR-009`/`ADR-010`/`DEV-015`) or Increment C (`FR-010`/`ADR-011`/`DEV-016`),
+declare an M3 fixed set or measurement window, or authorize M4; Increment B
+remains a separate future Owner decision.
