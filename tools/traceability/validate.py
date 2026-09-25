@@ -26,6 +26,7 @@ QG004_BOOTSTRAP_BASE = "972774f18b879d023eb005d1af021699ed6b4ed5"
 QG004_SCHEMA = "knowledge/schemas/implementation-evidence-gate.schema.json"
 AUTONOMOUS_EXECUTION_SCHEMA = "knowledge/schemas/autonomous-execution-policy.schema.json"
 STRUCTURAL_GATES = {"QG-001": "artifact-schema", "QG-002": "reference-integrity"}
+LEARNING_DISPOSITION_SCHEMA = "knowledge/schemas/learning-disposition.schema.json"
 
 SCHEMA_BY_KIND = {
     "problem": "problem.schema.json",
@@ -186,6 +187,22 @@ def load_structural_gates(repo: Path, ref: str | None = None) -> tuple[Structura
         return tuple(resolved)
     except (OSError, RuntimeError, ValueError, TypeError, KeyError, yaml.YAMLError) as exc:
         raise ValueError(f"structural gate governance ({ref or 'workspace'}): {exc}") from exc
+
+
+def validate_learning_disposition(repo: Path, node: Any) -> None:
+    """FR-012/ADR-014/DEV-020: validate the prospective learning_disposition shape
+    (value + non-empty rationale). Deterministic and directly testable; intentionally
+    not wired into main()/validate_traceability() against control/project-control.yaml
+    — see ADR-014's verification scope boundary. Does not judge substantive correctness
+    of the value or rationale."""
+    try:
+        schema = load_json(repo / LEARNING_DISPOSITION_SCHEMA)
+        Draft202012Validator.check_schema(schema)
+        errors = list(Draft202012Validator(schema).iter_errors(node))
+        if errors:
+            raise ValueError("; ".join(sorted(error.message for error in errors)))
+    except (OSError, TypeError, json.JSONDecodeError, SchemaError) as exc:
+        raise ValueError(f"learning_disposition schema unavailable: {exc}") from exc
 
 
 def extract_frontmatter(path: Path) -> dict[str, Any]:

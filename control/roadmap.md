@@ -1149,16 +1149,22 @@ accepted as a non-blocking audit-environment limitation rather than a test
 failure); the Project Owner then separately accepted the implementation
 outcome and authorized closure under Owner reference
 OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25, distinct from the earlier
-implementation-authority grant. CTRL-CHANGE-013 is delivered. Increments B
-(DEV-015) and C (DEV-016) remain proposed and unactivated. The next step is
-for the Project Owner to separately consider Increment B — FR-009 / ADR-010
-and possible bounded DEV-015 implementation authority — on its own terms;
-Increment B is not thereby accepted or automatically activated. Increment C
-(FR-010 / ADR-011 / DEV-016) remains a separate, later Owner decision. A
-prospective M3 measurement-window declaration and real fixed-set selection
-remain a distinct, later decision requiring its own explicit Owner authority;
-it is not implied by Increment A's delivery. The fixed set remains undeclared
-and the measurement window is not started.
+implementation-authority grant. CTRL-CHANGE-013 is delivered.
+CTRL-CHANGE-014 subsequently adds a bounded, manual Factory-learning
+disposition/applicability obligation through T2 FR-012 / ADR-014 / DEV-020 /
+TEST-020, delivered and closed under Owner acceptance reference
+OWNER-ACCEPT-CTRL-CHANGE-014-CLOSURE-2026-09-25 after independent Codex audit
+returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS. Increments B (DEV-015) and C
+(DEV-016) remain proposed and unactivated. The next step remains for the
+Project Owner to separately consider Increment B — FR-009 / ADR-010 and
+possible bounded DEV-015 implementation authority — on its own terms;
+Increment B is not thereby accepted or automatically activated by either
+CTRL-CHANGE-013 or CTRL-CHANGE-014. Increment C (FR-010 / ADR-011 / DEV-016)
+remains a separate, later Owner decision. A prospective M3 measurement-window
+declaration and real fixed-set selection remain a distinct, later decision
+requiring its own explicit Owner authority; it is not implied by either
+delivery. The fixed set remains undeclared and the measurement window is not
+started.
 ```
 
 Proposed review candidates:
@@ -1333,8 +1339,44 @@ than evidence of an implementation test failure. The Project Owner then
 separately accepted the implementation outcome and authorized closure under
 reference `OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25`, distinct from the
 earlier `OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25`
-implementation-authority grant. `CTRL-CHANGE-013` is now `complete`/`delivered`.
+implementation-authority grant. `CTRL-CHANGE-013` is `complete`/`delivered`.
 That closure does not accept, activate, or authorize Increment B
 (`FR-009`/`ADR-010`/`DEV-015`) or Increment C (`FR-010`/`ADR-011`/`DEV-016`),
 declare an M3 fixed set or measurement window, or authorize M4; Increment B
 remains a separate future Owner decision.
+
+`CTRL-CHANGE-014` adds a bounded, manual Factory-learning disposition and
+promoted-lesson-applicability obligation (Option B) through T2 `FR-012` /
+`ADR-014` / `DEV-020` / `TEST-020`, under Owner acceptance reference
+`OWNER-ACCEPT-CTRL-CHANGE-014-IMPLEMENTATION-2026-09-25`. `DEV-020` adds three
+role-conditioned prose invariants to
+`constitution/agent-runtime.yaml:runtime_projection.invariants` — a
+correction/closure-actor disposition duty, an executor applicability duty, and
+an independent-auditor reassessment duty — regenerated into `AGENTS.md` by the
+unmodified `tools/generate_agents.py`, plus a narrow
+`learning_disposition` shape schema/helper
+(`knowledge/schemas/learning-disposition.schema.json`,
+`validate_learning_disposition()`). Deterministic traceability correctly
+identified that T2 requires design evidence the existing component set did
+not provide; `CMP-005` was added under separate Owner supplemental authority
+(`OWNER-SUPPLEMENT-DEV-020-CMP-005-2026-09-25`) to document the pre-existing
+`constitution/agent-runtime.yaml` → `tools/generate_agents.py` → `AGENTS.md`
+projection boundary. The verification boundary is
+`MANUAL_PRESENCE_WITH_DETERMINISTIC_SHAPE`: the schema/helper validates
+disposition shape only, when supplied, and never proves a disposition was
+actually created or is actually present in a real closure/terminal event —
+that remains an accountable workflow/audit obligation, and `DEV-020` adds no
+live closure/terminal enforcement gate against `control/project-control.yaml`.
+A subsequent independent-audit-driven correction round fixed two factual
+documentation defects (an authority-attribution overclaim in `CMP-005` and an
+unclear historical/current framing in `control/learning/README.md`) without
+changing FR-012/ADR-014 substantive semantics, code, schema, or test
+behavior. An independent Codex audit of the complete change returned
+`ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` with no material blockers, and the
+Project Owner separately accepted the implementation outcome and authorized
+closure under reference `OWNER-ACCEPT-CTRL-CHANGE-014-CLOSURE-2026-09-25`,
+distinct from the earlier implementation-authority and supplemental-authority
+grants. `CTRL-CHANGE-014` is `complete`/`delivered`. That closure does not
+activate Increment B (`FR-009`/`ADR-010`/`DEV-015`) or Increment C
+(`FR-010`/`ADR-011`/`DEV-016`), declare an M3 fixed set or measurement window,
+or authorize M4; Increment B remains a separate future Owner decision.

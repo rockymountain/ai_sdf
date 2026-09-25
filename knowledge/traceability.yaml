@@ -436,3 +436,28 @@ tasks:
         - tools/traceability/tests/test_context_effect.py
     verification:
       - TEST-019
+
+  DEV-020:
+    level: T2
+    intent:
+      - FR-012
+    design:
+      - CMP-005
+    decisions:
+      - ADR-014
+    implementation:
+      paths:
+        - design/architecture/CMP-005.md
+        - design/requirements/FR-012.md
+        - design/decisions/ADR-014.md
+        - design/tasks/DEV-020.md
+        - design/verification/TEST-020.md
+        - knowledge/traceability.yaml
+        - constitution/agent-runtime.yaml
+        - AGENTS.md
+        - knowledge/schemas/learning-disposition.schema.json
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_learning_disposition.py
+        - control/learning/README.md
+    verification:
+      - TEST-020
