@@ -79,7 +79,6 @@ control_position:
       grants: implementation_outcome_and_closure_authority
     learning_disposition:
       value: NEW_LEARNING_CANDIDATE
-      actor: project-owner
       rationale: >-
         DEV-020 and its correction cycle produced reusable evidence that
         deterministic traceability, reproducibility, and passing tests do
@@ -88,13 +87,6 @@ control_position:
         learning disposition and promoted-learning applicability must be
         made explicit rather than depending on agent memory or incidental
         review.
-      supersedes_provisional:
-        actor: implementation-executor
-        value: NEW_LEARNING_CANDIDATE
-        status: superseded_by_owner_closure_disposition_for_closure_purposes
-      creates_lsn: false
-      reserves_lsn_id: false
-      promotes_lesson: false
     reason: >-
       T2 FR-012/ADR-014/DEV-020/TEST-020 add a bounded, manual learning-
       disposition and applicability obligation: at a material correction
@@ -133,7 +125,12 @@ control_position:
       This closure does not activate Increment B (FR-009/ADR-010/DEV-015) or
       Increment C (FR-010/ADR-011/DEV-016), declare an M3 fixed set or
       measurement window, or authorize M4; Increment B remains a separate
-      future Owner decision.
+      future Owner decision. The Project Owner confirmed the durable
+      learning_disposition, superseding the implementation executor's
+      earlier provisional NEW_LEARNING_CANDIDATE handoff assessment for
+      closure purposes. Under the issued Owner authority, the authorized
+      closure executor persisted that disposition in this project-control
+      record; it creates, reserves, or promotes no LSN.
     measurement_status: PRE-WINDOW
     evidence:
       decisions:
