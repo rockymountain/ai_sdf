@@ -3,7 +3,7 @@ id: TEST-015
 kind: verification
 title: Authoritative traceability and risk-attestation policy verification
 status: verified
-version: 3
+version: 4
 verification_type: integration
 ---
 
@@ -38,7 +38,18 @@ and proves:
   corrupted or weakened workspace schema;
 - the pinned bootstrap adapter accepts only the exact legacy base and exact
   legacy QG-003/QG-005 shape, rejects every other base and the workspace, and
-  never consults a proposed schema or proposed risk policy;
+  never consults a proposed schema or proposed risk policy. Both legacy gates
+  independently fail closed at the pinned base for: missing, duplicate, wrong
+  name, `deterministic`/`blocks_merge` false, wrong-typed (including the
+  integer/bool equality edge case `1` vs. `True`, and a string), extra field,
+  and non-mapping declarations; a proposed/workspace schema made maximally
+  permissive cannot rescue a malformed legacy base gate, because the bootstrap
+  path never consults it. The legacy-gate match uses a strict
+  `type(...) is bool` comparison (`_matches_legacy_gate()`), not plain dict
+  equality, precisely because Python's `1 == True` would otherwise let a
+  wrong-typed value satisfy the exact-boolean precondition — an actual
+  enforcement defect found and corrected by this verification round, not
+  merely a coverage gap;
 - an existing task's T2→T1 downgrade cannot delete base-required evidence, and
   passes when that evidence survives; a T1→T2 upgrade enforces the additional
   proposed requirement;

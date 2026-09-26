@@ -527,26 +527,51 @@ class TraceabilityRiskGateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validator.load_traceability_and_risk_gates(repo, historical)
 
+    # B0 section 12.2: the pinned base must accept only exactly one mapping of
+    # each legacy gate, with exact keys, exact id/name, and deterministic/
+    # blocks_merge as actual boolean True (never a merely-equal-under-`==`
+    # value such as the integer 1, since `1 == True` in Python).
+    LEGACY_GATE_MALFORMATIONS = (
+        ("missing", lambda doc, gid: doc.update(gates=[g for g in doc["gates"] if g["id"] != gid])),
+        ("duplicate", lambda doc, gid: doc["gates"].append(next(g.copy() for g in doc["gates"] if g["id"] == gid))),
+        ("wrong_name", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(name="renamed")),
+        ("deterministic_false", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(deterministic=False)),
+        ("blocks_merge_false", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(blocks_merge=False)),
+        ("deterministic_wrong_type_int", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(deterministic=1)),
+        ("blocks_merge_wrong_type_int", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(blocks_merge=1)),
+        ("deterministic_wrong_type_str", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(deterministic="true")),
+        ("blocks_merge_wrong_type_str", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(blocks_merge="true")),
+        ("extra_field", lambda doc, gid: next(g for g in doc["gates"] if g["id"] == gid).update(extra=True)),
+        ("non_mapping", lambda doc, gid: doc.update(gates=[("not-a-mapping" if g["id"] == gid else g) for g in doc["gates"]])),
+    )
+
     def test_bootstrap_declaration_failures_fail_closed(self):
         for gate_id in ("QG-003", "QG-005"):
-            with self.subTest(gate_id=gate_id, case="missing"):
-                def missing(repo, gate_id=gate_id):
-                    self.legacy_gates(repo)
-                    self.edit_yaml(repo, "constitution/quality-gates.yaml",
-                                   lambda doc, gate_id=gate_id: doc.update(gates=[g for g in doc["gates"] if g["id"] != gate_id]))
-                repo, base = self.repository(missing)
-                with patch.object(validator, "QG003_QG005_BOOTSTRAP_BASE", base):
-                    with self.assertRaises(ValueError):
-                        validator.load_traceability_and_risk_gates(repo, base)
-            for change in ({"deterministic": False}, {"blocks_merge": False}, {"extra": True}):
-                with self.subTest(gate_id=gate_id, case=change):
-                    def malformed(repo, gate_id=gate_id, change=change):
+            for name, mutate in self.LEGACY_GATE_MALFORMATIONS:
+                with self.subTest(gate_id=gate_id, case=name):
+                    def configure(repo, gate_id=gate_id, mutate=mutate):
                         self.legacy_gates(repo)
-                        self.edit_structural_gate(repo, gate_id, lambda g, change=change: g.update(change))
-                    repo, base = self.repository(malformed)
+                        self.edit_yaml(repo, "constitution/quality-gates.yaml",
+                                       lambda doc, gate_id=gate_id, mutate=mutate: mutate(doc, gate_id))
+                    repo, base = self.repository(configure)
                     with patch.object(validator, "QG003_QG005_BOOTSTRAP_BASE", base):
                         with self.assertRaises(ValueError):
                             validator.load_traceability_and_risk_gates(repo, base)
+
+    def test_malformed_base_gate_cannot_be_rescued_by_permissive_proposed_schema(self):
+        # A proposed/workspace schema permissive enough to accept the malformed
+        # legacy declaration must be irrelevant: the pinned bootstrap precondition
+        # never consults the proposed schema to interpret the legacy base.
+        for gate_id, schema_path in (("QG-003", validator.QG003_SCHEMA), ("QG-005", validator.QG005_SCHEMA)):
+            with self.subTest(gate_id=gate_id):
+                def configure(repo, gate_id=gate_id):
+                    self.legacy_gates(repo)
+                    self.edit_structural_gate(repo, gate_id, lambda g: g.update(deterministic=1))
+                repo, base = self.repository(configure)
+                (repo / schema_path).write_text('{"type": "object"}', encoding="utf-8")
+                with patch.object(validator, "QG003_QG005_BOOTSTRAP_BASE", base):
+                    with self.assertRaises(ValueError):
+                        validator.load_traceability_and_risk_gates(repo, base)
 
     def test_bootstrap_ignores_proposed_schema_and_risk_policy(self):
         repo, base = self.repository(self.legacy_gates)

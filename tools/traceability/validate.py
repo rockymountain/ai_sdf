@@ -273,6 +273,23 @@ def _parse_legacy_traceability_policy(policies_doc: dict[str, Any]) -> TracePoli
     return TracePolicy(levels, tuple(triggers), tuple(path_triggers))
 
 
+def _matches_legacy_gate(gate: Any, legacy: dict[str, Any]) -> bool:
+    """Exact legacy four-field gate match: exact key set, exact id/name, and
+    deterministic/blocks_merge as actual boolean `True` — never merely `==`,
+    since Python's `1 == True` would let a wrong-typed value pass a plain
+    dict comparison."""
+    if not isinstance(gate, dict) or set(gate) != set(legacy):
+        return False
+    for key, expected in legacy.items():
+        actual = gate.get(key)
+        if isinstance(expected, bool):
+            if type(actual) is not bool or actual is not expected:
+                return False
+        elif actual != expected:
+            return False
+    return True
+
+
 def load_traceability_and_risk_gates(repo: Path, ref: str | None = None) -> tuple[TracePolicy, RiskAttestationPolicy]:
     """Bind QG-003 (traceability-policy) and QG-005 (risk-attestation) as one
     authoritative, fail-closed contract pair reused by static and PR validation.
@@ -305,9 +322,11 @@ def load_traceability_and_risk_gates(repo: Path, ref: str | None = None) -> tupl
 
         if bootstrap:
             # Both exact legacy declarations must pass before any normalization occurs.
-            if qg003_gate != legacy_qg003:
+            # Strict match: Python's `1 == True` would otherwise let a wrong-typed
+            # deterministic/blocks_merge value pass a plain dict `==` comparison.
+            if not _matches_legacy_gate(qg003_gate, legacy_qg003):
                 raise ValueError("unexpected QG-003 bootstrap declaration")
-            if qg005_gate != legacy_qg005:
+            if not _matches_legacy_gate(qg005_gate, legacy_qg005):
                 raise ValueError("unexpected QG-005 bootstrap declaration")
             policies_doc = yaml.load(read("constitution/policies.yaml"), Loader=GovernanceLoader)
             trace_policy = _parse_legacy_traceability_policy(policies_doc)
@@ -318,7 +337,7 @@ def load_traceability_and_risk_gates(repo: Path, ref: str | None = None) -> tupl
             _validate_risk_applicability_invariant(trace_policy, risk_policy)
             return trace_policy, risk_policy
 
-        if qg003_gate == legacy_qg003 or qg005_gate == legacy_qg005:
+        if _matches_legacy_gate(qg003_gate, legacy_qg003) or _matches_legacy_gate(qg005_gate, legacy_qg005):
             raise ValueError("legacy QG-003/QG-005 declaration shape is supported only at the pinned bootstrap base")
 
         policies_doc = yaml.load(read("constitution/policies.yaml"), Loader=GovernanceLoader)
