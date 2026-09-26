@@ -375,7 +375,9 @@ class OperatorSelectionTests(unittest.TestCase):
 
 class PurposeScopedMeasurementTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(dir=ROOT / ".sdf" / "runtime")
+        runtime_root = ROOT / ".sdf" / "runtime"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        self.temporary = tempfile.TemporaryDirectory(dir=runtime_root)
         self.database = Path(self.temporary.name) / "evidence.sqlite3"
         connection = sqlite3.connect(self.database)
         connection.executescript(
