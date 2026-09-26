@@ -4,7 +4,8 @@ title: AI-Native Software Design Factory Project Control
 status: active
 version: 1
 owner: factory-maintainer
-last_updated: "2026-09-22"
+last_updated: "2026-09-26"
+change_owner: CTRL-CHANGE-015
 
 project:
   id: ai_sdf
@@ -49,10 +50,329 @@ control_position:
   current_milestone:
     id: M3
     title: AI Cost Control Baseline
-    status: planned
+    status: in_progress
+    actual_measurement_window: not_started
   intended_next_delivery:
     dev_task: null
-    status: pending_m3_readiness_decision
+    status: planned
+  current_decision:
+    change_owner: CTRL-CHANGE-015
+    subject: >-
+      close Increment B after accepted authoritative QG-003/QG-005
+      traceability and risk-attestation policy implementation
+    status: complete
+    disposition: delivered
+    owner_acceptance:
+      reference: OWNER-ACCEPT-CTRL-CHANGE-015-INCREMENT-B-2026-09-26
+      accepted_on: "2026-09-26"
+      grants: implementation_authority_only
+    audit:
+      independent_codex_verdict: ACCEPTED_WITH_OUT_OF_SCOPE_MATERIAL_OBSERVATION
+      material_blockers_remaining: false
+      note: >-
+        The final independent implementation audit found no remaining material
+        blocker inside the accepted DEV-015 / Increment B boundary. Codex could
+        not independently rerun some Python suites because its Windows audit
+        sandbox could not obtain usable Temp access; this is recorded as an
+        audit-environment limitation rather than evidence of a product-test
+        failure. Codex directly inspected the implementation and regression
+        evidence and independently reproduced static and real Git/PR validation.
+    outcome_acceptance:
+      reference: OWNER-ACCEPT-CTRL-CHANGE-015-CLOSURE-2026-09-26
+      accepted_on: "2026-09-26"
+      grants: implementation_outcome_and_closure_authority
+    out_of_scope_material_observation:
+      source: independent_codex_audit
+      status: open
+      affected_controls:
+        - QG-001
+        - QG-002
+        - QG-004
+      introduced_by_ctrl_change_015: false
+      resolved_by_increment_b: false
+      disposition: separate_owner_control_action_required
+      finding: >-
+        Existing QG-004 bootstrap declaration validation and live QG-001/QG-002
+        declaration validation use ordinary Python mapping equality for shapes
+        containing boolean values. Because Python treats integer 1 as equal to
+        boolean True, these pre-existing paths can accept a wrong-typed integer
+        where an exact boolean true is intended. DEV-015 corrected this defect
+        only for the newly governed QG-003/QG-005 legacy bootstrap boundary.
+        QG-001/QG-002 and QG-004 remain outside Increment B authority and require
+        a separate Project Owner decision.
+    learning_disposition:
+      value: NEW_LEARNING_CANDIDATE
+      rationale: >-
+        The independent-audit-driven DEV-015 correction cycle produced reusable
+        evidence that governance contracts requiring exact boolean or other
+        type-sensitive values must not rely on ordinary Python equality alone.
+        Test-first negative coverage demonstrated that integer 1 satisfies
+        equality with True and therefore allowed a wrong-typed governance
+        declaration to pass an intended exact-boolean legacy-gate precondition.
+        The defect was corrected within DEV-015 for QG-003/QG-005, and the same
+        pre-existing pattern was independently identified in QG-004 bootstrap
+        validation and live QG-001/QG-002 declaration validation. This evidence
+        is sufficiently general to inform a future reusable governance-validation
+        rule, but this closure does not create, reserve, or promote an LSN.
+    reason: >-
+      The Project Owner accepted FR-009/ADR-010 and authorized bounded T2
+      DEV-015 implementation under
+      OWNER-ACCEPT-CTRL-CHANGE-015-INCREMENT-B-2026-09-26. DEV-015 implemented
+      the accepted authoritative QG-003/QG-005 policy contract and TEST-015
+      verified the accepted deterministic boundary, including fail-closed policy
+      structure, policy-driven risk-attestation applicability, independent
+      base/proposed self-protection, exact pinned-bootstrap behavior, task
+      transition protection and regression safety. Independent audit findings
+      triggered bounded correction rounds before final outcome acceptance. The
+      final immutable implementation revision
+      be93a841f19f9fc690157ea5dbf5aa0fceef4b16 received the independent verdict
+      ACCEPTED_WITH_OUT_OF_SCOPE_MATERIAL_OBSERVATION with no material blockers
+      remaining inside DEV-015 / Increment B scope. The out-of-scope strict-type
+      defects in pre-existing QG-001/QG-002/QG-004 declaration validation are
+      explicitly retained as a separate unresolved Owner-governed concern and
+      are not represented as corrected by Increment B. This closure neither
+      activates Increment C nor declares an M3 fixed set, EvidenceBoundary or
+      measurement window, and it does not authorize M4.
+    measurement_status: PRE-WINDOW
+    evidence:
+      decisions:
+        - ADR-010
+      dev:
+        - DEV-015
+      verification:
+        - TEST-015
+  prior_delivered_decision:
+    change_owner: CTRL-CHANGE-014
+    subject: >-
+      add a bounded, manual Factory-learning disposition and
+      promoted-lesson-applicability obligation (Option B)
+    status: complete
+    disposition: delivered
+    owner_acceptance:
+      reference: OWNER-ACCEPT-CTRL-CHANGE-014-IMPLEMENTATION-2026-09-25
+      accepted_on: "2026-09-25"
+      grants: implementation_authority_only
+    supplemental_authority:
+      reference: OWNER-SUPPLEMENT-DEV-020-CMP-005-2026-09-25
+      accepted_on: "2026-09-25"
+      grants: bounded_cmp005_design_evidence_and_verification_boundary_correction_only
+    audit:
+      independent_codex_verdict: ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS
+      material_blockers_remaining: false
+    outcome_acceptance:
+      reference: OWNER-ACCEPT-CTRL-CHANGE-014-CLOSURE-2026-09-25
+      accepted_on: "2026-09-25"
+      grants: implementation_outcome_and_closure_authority
+    learning_disposition:
+      value: NEW_LEARNING_CANDIDATE
+      rationale: >-
+        DEV-020 and its correction cycle produced reusable evidence that
+        deterministic traceability, reproducibility, and passing tests do
+        not by themselves establish that canonical architecture prose
+        accurately describes authority flow. The work also demonstrated that
+        learning disposition and promoted-learning applicability must be
+        made explicit rather than depending on agent memory or incidental
+        review.
+    reason: >-
+      T2 FR-012/ADR-014/DEV-020/TEST-020 add a bounded, manual learning-
+      disposition and applicability obligation: at a material correction
+      round the Owner-authorized correction actor records a provisional
+      disposition in that round's handoff; at CTRL-CHANGE delivery closure
+      or an Owner-issued non-delivery terminal outcome, the authorized actor
+      records a durable disposition in the governed control-decision record.
+      Before material T1/T2 work the executor checks control/learning/ for
+      applicable promoted lessons, deriving mandatory checks only from each
+      lesson's promoted_result, never from its narrative/preventive_heuristic
+      fields; the independent auditor independently re-derives applicability
+      and verifies whether required checks were performed. Both duties are
+      anchored as role-conditioned invariants in
+      constitution/agent-runtime.yaml and projected into AGENTS.md by the
+      unmodified tools/generate_agents.py. Deterministic traceability
+      correctly identified that T2 requires design evidence the existing
+      component set did not provide; CMP-005 was added under separate Owner
+      supplemental authority (OWNER-SUPPLEMENT-DEV-020-CMP-005-2026-09-25) to
+      document the pre-existing constitution/agent-runtime.yaml ->
+      tools/generate_agents.py -> AGENTS.md projection boundary, and the
+      verification boundary was set to MANUAL_PRESENCE_WITH_DETERMINISTIC_SHAPE:
+      the learning-disposition schema/helper validates shape only, when
+      supplied, and never proves that a disposition was actually created or
+      is actually present in a real closure/terminal event — that remains an
+      accountable workflow/audit obligation. A subsequent independent-audit-
+      driven correction round fixed two factual documentation defects (an
+      authority-attribution overclaim in CMP-005 and an unclear historical/
+      current framing in control/learning/README.md) without changing any
+      substantive FR-012/ADR-014 semantics, code, schema, or test behavior.
+      An independent Codex audit of the complete change returned
+      ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no material blockers, and
+      the Project Owner separately accepted the implementation outcome and
+      authorized closure under reference
+      OWNER-ACCEPT-CTRL-CHANGE-014-CLOSURE-2026-09-25, distinct from the
+      earlier implementation-authority and supplemental-authority grants.
+      This closure does not activate Increment B (FR-009/ADR-010/DEV-015) or
+      Increment C (FR-010/ADR-011/DEV-016), declare an M3 fixed set or
+      measurement window, or authorize M4; Increment B remains a separate
+      future Owner decision. The Project Owner confirmed the durable
+      learning_disposition, superseding the implementation executor's
+      earlier provisional NEW_LEARNING_CANDIDATE handoff assessment for
+      closure purposes. Under the issued Owner authority, the authorized
+      closure executor persisted that disposition in this project-control
+      record; it creates, reserves, or promotes no LSN.
+    measurement_status: PRE-WINDOW
+    evidence:
+      decisions:
+        - ADR-014
+      dev:
+        - DEV-020
+      verification:
+        - TEST-020
+    previous:
+      change_owner: CTRL-CHANGE-013
+      subject: >-
+        activate Increment A of the deferred CTRL-CHANGE-009 package — bind
+        QG-001/QG-002 declarations to existing CMP-002 enforcement
+      status: complete
+      disposition: delivered
+      owner_acceptance:
+        reference: OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25
+        accepted_on: "2026-09-25"
+        grants: implementation_authority_only
+      audit:
+        independent_codex_verdict: ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS
+        material_blockers_remaining: false
+        note: >-
+          Codex could not independently reproduce Claude's reported 311-test
+          full-suite result because its audit environment encountered Windows
+          Temp permission errors. The Project Owner accepted this as a
+          non-blocking audit-environment limitation, not as evidence of an
+          implementation test failure.
+      outcome_acceptance:
+        reference: OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25
+        accepted_on: "2026-09-25"
+        grants: implementation_outcome_and_closure_authority
+      reason: >-
+        The Project Owner accepted FR-008/ADR-009 (Increment A of the frozen
+        CTRL-CHANGE-009 quality-governance package) and authorized bounded T2
+        DEV-014 implementation: binding the canonical QG-001 (artifact-schema) and
+        QG-002 (reference-integrity) declarations to their existing, unchanged
+        CMP-002 enforcement paths via a new load_structural_gates check, applying
+        the ADR-004 base/proposed self-protection pattern at both the
+        workspace/proposed and base evaluation points. This activation is scoped to
+        Increment A only; it does not accept or activate FR-009/ADR-010/DEV-015
+        (Increment B) or FR-010/ADR-011/DEV-016 (Increment C), and leaves ADR-011's
+        evidence-source decision unresolved. An independent Codex audit returned
+        ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers, and the
+        Project Owner separately accepted the implementation outcome and
+        authorized closure under reference
+        OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25, distinct from the earlier
+        implementation-authority grant. Increment B (FR-009/ADR-010/DEV-015)
+        remains a separate future Owner decision, not activated by this closure.
+      measurement_status: PRE-WINDOW
+      evidence:
+        decisions:
+          - ADR-009
+        dev:
+          - DEV-014
+        verification:
+          - TEST-014
+      previous:
+        change_owner: CTRL-CHANGE-012
+        subject: separate the M4 context-effect KPI from delivery-accounting token totals
+        status: complete
+        disposition: delivered
+        owner_acceptance:
+          reference: OWNER-ACCEPT-CTRL-CHANGE-012-2026-09-25
+          accepted_on: "2026-09-25"
+        audit:
+          independent_codex_verdict: ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS
+          material_blockers_remaining: false
+        reason: >-
+          With Claude and Codex both live as controlled adapters (CTRL-CHANGE-010) and
+          corrected for runtime-version provenance (CTRL-CHANGE-011), reusing the
+          existing all-attributable, mixed-provider delivery-accounting metric
+          (input_tokens_per_accepted_dev) as if it were the non-canonical Phase-1
+          plan's M4 Graphify/context-treatment gate would conflate two different
+          questions and risk a wrong future M4 decision. T2 ADR-013 / DEV-019 /
+          TEST-019 introduce a separately named, separately structured M4
+          context-effect KPI (src/ai_execution/context_effect.py) with a predeclared
+          accepted-DEV cohort, deterministic evidence-backed compatibility evaluation
+          (observed model/runtime version, never requested model alone), and three
+          independently represented signals: effect_metric_calculable,
+          effect_gate_result (exact-arithmetic >= 70% threshold), and
+          treatment_decision_eligible (requires a declared GuardrailContract, which
+          this change does not populate with any real M4 guardrail set). Existing
+          cost_baseline.py delivery-accounting metrics and REPORT_SCHEMA_VERSION are
+          unmodified. No compatibility rule for any real Claude or OpenAI runtime
+          version is shipped; only the deterministic mechanism, exercised by synthetic
+          fixtures. AIRuntimePort, the gateway, controller, and operational schema are
+          unchanged.
+        measurement_status: PRE-WINDOW
+        evidence:
+          decisions:
+            - ADR-013
+          dev:
+            - DEV-019
+          verification:
+            - TEST-019
+        previous:
+          change_owner: CTRL-CHANGE-011
+          subject: Claude runtime-version provenance correction
+          status: complete
+          disposition: delivered
+          reason: >-
+            An independent post-closure Codex audit of CTRL-CHANGE-010 found that
+            production Claude execution did not record the runtime version required
+            by accepted FR-006. A second independent Codex re-audit then found the
+            first DEV-018 implementation itself violated accepted FR-007 reservation
+            semantics; the correction moved version discovery inside
+            ClaudeRuntimeAdapter.start(), reusing existing gateway/controller
+            reservation-release machinery unchanged. The re-audit returned
+            ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers, and the
+            Project Owner accepted the correction for closure. Historical Claude rows
+            with runtime_version null remain immutable and are not backfilled.
+          measurement_status: PRE-WINDOW
+          evidence:
+            dev:
+              - DEV-018
+            verification:
+              - TEST-018
+          previous:
+            change_owner: CTRL-CHANGE-010
+            subject: dual-runtime controlled execution and purpose-scoped M3 treatment
+            status: complete
+            disposition: delivered
+            measurement_status: PRE-WINDOW
+            post_closure_finding:
+              source: independent_codex_audit
+              finding: incomplete_claude_runtime_version_provenance
+              correction_owner: CTRL-CHANGE-011
+              correction_status: resolved
+              historical_evidence_rewritten: false
+  retained_deferred_decision:
+    change_owner: CTRL-CHANGE-009
+    subject: quality-gate family intent/design package
+    disposition: deferred
+    retained: true
+    implementation_authority: false
+  prospective_m3_fixed_set:
+    status: not_yet_declared
+    disposition: deferred
+    candidate_lifecycle: proposed
+    implementation_authority: false
+    candidates:
+      - DEV-014
+      - DEV-015
+      - DEV-016
+    historical_record_note: >-
+      This candidates list and candidate_lifecycle=proposed preserve the
+      original CTRL-CHANGE-009 PRE-WINDOW prospective-candidate record
+      unchanged; they are not the current lifecycle status of any listed task.
+      DEV-014 was subsequently implemented separately under CTRL-CHANGE-013
+      (see current_decision) as PRE-WINDOW governance-stabilization work; that
+      implementation does not add DEV-014 to the M3 fixed set or M3 baseline
+      cohort, which remain governed solely by status/disposition above.
+      DEV-015 and DEV-016 remain proposed with no implementation authority,
+      unchanged from this historical record. The M3 fixed set itself remains
+      not_yet_declared and the M3 measurement window has not started.
 
 capacity:
   human_focused:
@@ -91,7 +411,17 @@ milestones:
   M3:
     title: AI Cost Control Baseline
     phase: phase-1.1
-    status: planned
+    status: in_progress
+    actual_measurement_window: not_started
+    evidence:
+      dev:
+        - DEV-011
+        - DEV-012
+        - DEV-013
+      verification:
+        - TEST-011
+        - TEST-012
+        - TEST-013
   M4:
     title: Efficient Context
     phase: phase-1.1
@@ -169,10 +499,10 @@ scope:
       - M0
       - M1
       - M2
-    in_progress: []
+    in_progress:
+      - M3
     ready: []
     remaining:
-      - M3
       - M4
       - M5
       - M6

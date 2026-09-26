@@ -228,11 +228,11 @@ class ValidatorTests(unittest.TestCase):
 
     def test_t1_attestation_must_be_complete(self):
         body = "Traceability Task: DEV-002\nTraceability Level: T1\n- [x] I confirm this change does **NOT** affect architecture boundaries or dependencies."
-        self.assertFalse(validator.has_risk_attestation(body, "T1"))
+        self.assertFalse(validator.attestation_satisfied(body, validator.LEGACY_RISK_ATTESTATION_SUBSTRINGS["T1"]))
 
     def test_t2_attestation(self):
         body = "- [x] I acknowledge this is a material design change and have linked the required design + decision/contract + verification evidence."
-        self.assertTrue(validator.has_risk_attestation(body, "T2"))
+        self.assertTrue(validator.attestation_satisfied(body, validator.LEGACY_RISK_ATTESTATION_SUBSTRINGS["T2"]))
 
 
     def init_git(self, repo: Path):

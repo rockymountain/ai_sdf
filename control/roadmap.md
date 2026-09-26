@@ -5,7 +5,8 @@ title: AI-Native Software Design Factory Delivery Roadmap
 status: active
 version: 2
 owner: factory-maintainer
-last_updated: 2026-09-22
+last_updated: 2026-09-25
+change_owner: CTRL-CHANGE-013
 ---
 
 # AI-Native Software Design Factory Delivery Roadmap
@@ -197,9 +198,10 @@ Phase 1:
 Latest completed milestone:
   M2 — Bounded Autonomous Execution
 
-Next milestone:
+Current milestone:
   M3 — AI Cost Control Baseline
-  status: planned
+  status: in_progress
+  actual measurement window: not_started
 ```
 
 Current measurement maturity:
@@ -233,7 +235,7 @@ be retroactively estimated as zero.
 | M0  | Governed Foundation                | Phase 0   | complete | Canonical, traceable, reproducible and human-governed engineering foundation                     |
 | M1  | Metered AI Runtime                 | Phase 1.0 | complete | Every controlled AI invocation can be bounded, attributed and measured                           |
 | M2  | Bounded Autonomous Execution       | Phase 1.0 | complete | Autonomous implementation cannot exceed governed attempt/circuit limits |
-| M3  | AI Cost Control Baseline           | Phase 1.1 | planned  | Reliable chat-heavy control window establishes cost/quality baseline                             |
+| M3  | AI Cost Control Baseline           | Phase 1.1 | in_progress | Reliable chat-heavy control window establishes cost/quality baseline                          |
 | M4  | Efficient Context                  | Phase 1.1 | planned  | Context optimization is accepted or rejected using measured ROI                                  |
 | M5  | Efficient Model / Reasoning        | Phase 1.1 | planned  | Model/reasoning optimization is independently measured                                           |
 | M6  | Proven Bounded Automation          | Phase 1   | planned  | Independently proven treatments combine into bounded AI-assisted execution                       |
@@ -402,7 +404,7 @@ M1.
 ## M3 — AI Cost Control Baseline
 
 **Phase:** Phase 1.1
-**Status:** planned
+**Status:** in_progress
 
 ### Outcome
 
@@ -1104,15 +1106,84 @@ Current roadmap position:
 M0  COMPLETE
 M1  COMPLETE
 M2  COMPLETE
+M3  IN_PROGRESS
 ```
 
-Next intended engineering milestone:
+Delivered under CTRL-CHANGE-007:
 
 ```text
-M3 — AI Cost Control Baseline
-status: PLANNED
-readiness: pending explicit decision
+DEV-012 — durable controlled-runtime operator authorization and adoption
+status: IMPLEMENTED
+verification: TEST-012 VERIFIED
+live adoption gate: PASSED as a separately authorized PRE-WINDOW proof
 ```
+
+Delivered under CTRL-CHANGE-008:
+
+```text
+DEV-013 — provider-neutral measurement-contract correction
+status: IMPLEMENTED
+verification: TEST-013 VERIFIED
+scope: separate generic measurement validation from concrete treatment declaration
+```
+
+Current next decision:
+
+```text
+CTRL-CHANGE-010 dual-runtime controlled execution is delivered through DEV-017.
+CTRL-CHANGE-011 corrects a post-closure Claude runtime-version provenance defect
+through T1 DEV-018 / TEST-018, delivered and closed after a second independent
+Codex re-audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS.
+CTRL-CHANGE-012 separates the M4 context-effect KPI from delivery-accounting
+token totals through T2 ADR-013 / DEV-019 / TEST-019, delivered and closed
+under Owner acceptance reference OWNER-ACCEPT-CTRL-CHANGE-012-2026-09-25 after
+independent Codex audit returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS.
+CTRL-CHANGE-013 activates and delivers Increment A of the deferred
+CTRL-CHANGE-009 package through T2 FR-008 / ADR-009 / DEV-014 / TEST-014.
+Implementation authority was granted under Owner reference
+OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25; an independent Codex audit
+returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS with no remaining blockers
+(Codex could not independently reproduce the reported 311-test full-suite
+result due to a Windows Temp permission limitation in its audit environment,
+accepted as a non-blocking audit-environment limitation rather than a test
+failure); the Project Owner then separately accepted the implementation
+outcome and authorized closure under Owner reference
+OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25, distinct from the earlier
+implementation-authority grant. CTRL-CHANGE-013 is delivered.
+CTRL-CHANGE-014 subsequently adds a bounded, manual Factory-learning
+disposition/applicability obligation through T2 FR-012 / ADR-014 / DEV-020 /
+TEST-020, delivered and closed under Owner acceptance reference
+OWNER-ACCEPT-CTRL-CHANGE-014-CLOSURE-2026-09-25 after independent Codex audit
+returned ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS. Increments B (DEV-015) and C
+(DEV-016) remain proposed and unactivated. The next step remains for the
+Project Owner to separately consider Increment B — FR-009 / ADR-010 and
+possible bounded DEV-015 implementation authority — on its own terms;
+Increment B is not thereby accepted or automatically activated by either
+CTRL-CHANGE-013 or CTRL-CHANGE-014. Increment C (FR-010 / ADR-011 / DEV-016)
+remains a separate, later Owner decision. A prospective M3 measurement-window
+declaration and real fixed-set selection remain a distinct, later decision
+requiring its own explicit Owner authority; it is not implied by either
+delivery. The fixed set remains undeclared and the measurement window is not
+started.
+```
+
+Proposed review candidates:
+
+```text
+DEV-014 — bind QG-001/QG-002 declarations to existing enforcement
+DEV-015 — make QG-003/QG-005 policy authoritative
+DEV-016 — enforce accountable QG-006 review evidence after source selection
+```
+
+The three-task package was deferred under CTRL-CHANGE-009 because the execution
+strategy pivoted before owner acceptance to validate purpose-scoped multi-runtime
+execution with Claude as controlled executor and Codex as independent read-only
+auditor; CTRL-CHANGE-009 itself remains deferred, not rejected or implemented, and
+is not retroactively rewritten as accepted or delivered. DEV-014 (Increment A) was
+subsequently activated separately under CTRL-CHANGE-013 — see below. DEV-015 and
+DEV-016 (Increments B and C) remain PROPOSED with no implementation authority. No
+measurement window, task-set boundary, or M3/M4 timestamp is declared by any of
+this.
 
 The initial Project Control Baseline remains established and active:
 
@@ -1129,4 +1200,183 @@ PR #12 at:
 63fc3f2de53631dc1d6e32f3e1600a3cd9623afc
 ```
 
-This update does not promote M3 to READY and does not rebaseline the project.
+CTRL-CHANGE-006 activates M3 delivery without marking the cost-control baseline
+proven or complete. It does not rebaseline the project and does not start M4.
+
+CTRL-CHANGE-007 approves ADR-007 and delivers the bounded DEV-012 implementation
+while closing the already delivered DEV-011 capability. The separately authorized
+PRE-WINDOW live provider adoption proof passed and proves generic controlled-runtime
+operator adoption; it is not M3 baseline evidence. The actual M3 measurement window
+has not started, the cost-control baseline is not yet proven, the exact M3 token KPI
+is not decision-eligible, and M4 remains planned and unauthorized.
+
+CTRL-CHANGE-008 delivers the provider-neutrality correction in ADR-008 / DEV-013 /
+TEST-013 before any M3 window declaration. It preserves the current intended M3
+GPT-5.6 Sol / medium treatment as declaration data rather than a generic engine
+invariant. It does not rebaseline the project, start the M3 measurement window,
+prove the cost-control baseline, make the exact token KPI decision-eligible, start
+M4, or deliver a second provider runtime. The next decision is the prospective M3
+measurement-window declaration and real task-set selection; at that control point no
+DEV-014 or later task was selected.
+
+CTRL-CHANGE-009 creates the PRE-WINDOW proposed intent/design package for three
+prospective quality-governance increments: QG-001/QG-002, QG-003/QG-005, and QG-006.
+Its disposition is deferred, not rejected or implemented, following the execution-
+strategy pivot. It does not accept the proposed ADRs, activate implementation,
+declare the prospective fixed set, start the M3 measurement window, count this design
+work as baseline evidence, rebaseline the project, or authorize M4. ADR-011 leaves
+review-evidence source selection as an explicit Project Owner decision.
+
+CTRL-CHANGE-010 delivers accepted FR-011, ADR-012, T2 DEV-017, and verified TEST-017:
+a controlled Claude adapter, explicit operator runtime selection, purpose-scoped
+measurement treatment, and provider-neutral usage normalization while preserving
+one DEV attribution and the unchanged `AIRuntimePort`. The separately authorized
+PRE-WINDOW adoption proof established Claude as controlled executor, including a
+governed implementation canary and exact prospective usage normalization, and Codex
+as independent read-only auditor. It introduced no automatic routing. The original
+Stage A unknown usage remains immutable, so the four-invocation PRE-WINDOW aggregate
+is incomplete; none of that proof counts as M3 baseline evidence. The change does
+not rebaseline the project, accept or activate the deferred CTRL-CHANGE-009 package,
+declare the M3 fixed set, start the M3 measurement window, prove the baseline, make
+exact token KPIs decision-eligible, or authorize M4. The next decision remains the
+prospective M3 measurement-window declaration and real task-set selection.
+
+CTRL-CHANGE-011 records that an independent post-closure Codex audit of
+CTRL-CHANGE-010 found incomplete Claude runtime-version provenance: accepted FR-006
+requires terminal records to include runtime versions, but production Claude
+execution recorded `runtime_version = null`. T1 DEV-018 / TEST-018 restores
+conformance prospectively by observing the declared Claude executable's own
+`--version` output before provider execution and failing closed when it cannot be
+observed. The retained Claude PRE-WINDOW rows with null runtime version remain
+immutable historical evidence and are not backfilled. CTRL-CHANGE-010 remains
+delivered history. The correction changes no `AIRuntimePort`, schema, capability,
+routing, or Codex behavior, and does not activate DEV-014/015/016, declare the M3
+fixed set, start the M3 measurement window, prove the baseline, make exact token KPIs
+decision-eligible, or authorize M4.
+
+An independent Codex re-audit of that first DEV-018 implementation found it still
+violated accepted FR-007: it resolved Claude runtime version in the operator, before
+`ControlledInvocationGateway.invoke()`, so a discovery failure for an implementation
+invocation bypassed `RuntimeStartControl`/start evidence and stranded an existing
+`RESERVED` reservation instead of releasing it. The correction moved discovery inside
+`ClaudeRuntimeAdapter.start()`, reusing the adapter's existing pre-start try/except and
+the gateway/controller's existing reservation-release machinery unchanged, so a
+discovery failure now releases an implementation reservation
+(`RESERVED -> RELEASED`) without consuming an attempt, and the candidate slot remains
+reusable. FR-006 and FR-007 both hold. DEV-018 remains T1.
+
+That re-audit returned `ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` with no remaining
+blockers, and the Project Owner accepted the correction, closing CTRL-CHANGE-011 as
+delivered. DEV-018 is implemented and TEST-018 is verified; both are PRE-WINDOW
+corrective work and do not count as M3 baseline evidence. CTRL-CHANGE-010 remains
+unrewritten delivered history. DEV-014/015/016 remain proposed/deferred with no
+implementation authority, the M3 fixed set remains undeclared, the measurement
+window remains not started, and M4 remains unauthorized.
+
+CTRL-CHANGE-012 is an Owner-approved, prospective correction to how the M4
+context-effect KPI is defined, made before any M3 measurement window exists. The
+non-canonical Phase-1 plan (§7.1/§14.1) named "average input tokens per accepted
+DEV task" as the M4 Graphify/context-treatment gate; with Claude and Codex both
+live as controlled adapters, reusing that all-attributable, mixed-provider
+delivery-accounting field as a provider-comparable context metric would silently
+conflate two different questions. T2 `ADR-013` / `DEV-019` / verified `TEST-019`
+introduce a distinct `context_effect` KPI
+(`src/ai_execution/context_effect.py`) with its own predeclared accepted-DEV
+cohort, deterministic evidence-backed compatibility evaluation against retained
+`observed_model`/`runtime_version` evidence (never requested identity alone), and
+three independently represented signals: `effect_metric_calculable`,
+`effect_gate_result` (exact-arithmetic `>= 70%` reduction threshold, carried
+forward from the Phase-1 plan's stated gate and made canonical by this decision),
+and `treatment_decision_eligible` (requires a declared `GuardrailContract`, which
+this change does not populate with any real M4 guardrail set). A passing gate
+never implies decision eligibility and a failing gate never implies
+ineligibility; only the Project Owner decides. `src/ai_execution/cost_baseline.py`
+— including `input_tokens_per_accepted_dev`, `total_tokens_per_accepted_dev`, and
+`REPORT_SCHEMA_VERSION` — is unmodified. No compatibility rule for any real Claude
+or OpenAI runtime version is shipped; TEST-019 exercises the mechanism with
+synthetic fixtures only. `AIRuntimePort`, the gateway, controller, and operational
+schema are unchanged. The change does not declare an M3 measurement window or
+fixed task set, execute any baseline task, activate DEV-014/015/016, authorize
+M4, or make any treatment-acceptance decision.
+
+An independent Codex audit reviewed the implementation across five rounds of
+bounded correction, returning `ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` on the
+final round with no remaining blockers. The Project Owner then explicitly
+accepted CTRL-CHANGE-012 under acceptance reference
+`OWNER-ACCEPT-CTRL-CHANGE-012-2026-09-25`, closing it as delivered. That
+acceptance does not declare or start the M3 measurement window, declare the M3
+fixed DEV set, establish a real runtime/token compatibility rule or a real M4
+guardrail contract, accept any context treatment, authorize M4, or activate
+DEV-014/015/016. `ADR-013` remains `accepted`, `DEV-019` remains `implemented`,
+and `TEST-019` remains `verified`; none is promoted to a new status merely
+because CTRL-CHANGE-012 itself is delivered.
+
+CTRL-CHANGE-013 activates Increment A of the frozen CTRL-CHANGE-009
+quality-governance package — `FR-008` / `ADR-009` / `DEV-014` / `TEST-014` — under
+Owner acceptance reference `OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25`.
+`FR-008` and `ADR-009` are accepted; `DEV-014` binds the canonical `QG-001`
+(artifact-schema) and `QG-002` (reference-integrity) declarations to their
+existing, unchanged `CMP-002` enforcement paths through a new
+`load_structural_gates` check in `tools/traceability/validate.py`, reusing
+`scan_artifacts` and `validate_traceability` without a second schema or reference
+engine, and applying the `ADR-004` base/proposed self-protection pattern at both
+the workspace/proposed and base evaluation points. `TEST-014` is verified by
+`StructuralGateTests` in `tools/traceability/tests/test_quality_gate.py`. This
+activation is scoped to Increment A only: it does not accept `FR-009`/`ADR-010`
+(Increment B) or `FR-010`/`ADR-011` (Increment C), does not activate `DEV-015` or
+`DEV-016`, and leaves `ADR-011`'s evidence-source decision unresolved.
+`CTRL-CHANGE-009` remains the historical deferred package and is not rewritten as
+accepted, activated, or delivered. `DEV-014` is PRE-WINDOW governance-stabilization
+work: it is not part of the M3 baseline cohort, does not declare an M3 fixed set or
+measurement window, and does not authorize M4.
+
+An independent Codex audit of the DEV-014 implementation returned
+`ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` with no remaining blockers; Codex could
+not independently reproduce Claude's reported 311-test full-suite result because
+its audit environment encountered Windows Temp permission errors, which the
+Project Owner accepted as a non-blocking audit-environment limitation rather
+than evidence of an implementation test failure. The Project Owner then
+separately accepted the implementation outcome and authorized closure under
+reference `OWNER-ACCEPT-CTRL-CHANGE-013-CLOSURE-2026-09-25`, distinct from the
+earlier `OWNER-ACCEPT-CTRL-CHANGE-013-INCREMENT-A-2026-09-25`
+implementation-authority grant. `CTRL-CHANGE-013` is `complete`/`delivered`.
+That closure does not accept, activate, or authorize Increment B
+(`FR-009`/`ADR-010`/`DEV-015`) or Increment C (`FR-010`/`ADR-011`/`DEV-016`),
+declare an M3 fixed set or measurement window, or authorize M4; Increment B
+remains a separate future Owner decision.
+
+`CTRL-CHANGE-014` adds a bounded, manual Factory-learning disposition and
+promoted-lesson-applicability obligation (Option B) through T2 `FR-012` /
+`ADR-014` / `DEV-020` / `TEST-020`, under Owner acceptance reference
+`OWNER-ACCEPT-CTRL-CHANGE-014-IMPLEMENTATION-2026-09-25`. `DEV-020` adds three
+role-conditioned prose invariants to
+`constitution/agent-runtime.yaml:runtime_projection.invariants` — a
+correction/closure-actor disposition duty, an executor applicability duty, and
+an independent-auditor reassessment duty — regenerated into `AGENTS.md` by the
+unmodified `tools/generate_agents.py`, plus a narrow
+`learning_disposition` shape schema/helper
+(`knowledge/schemas/learning-disposition.schema.json`,
+`validate_learning_disposition()`). Deterministic traceability correctly
+identified that T2 requires design evidence the existing component set did
+not provide; `CMP-005` was added under separate Owner supplemental authority
+(`OWNER-SUPPLEMENT-DEV-020-CMP-005-2026-09-25`) to document the pre-existing
+`constitution/agent-runtime.yaml` → `tools/generate_agents.py` → `AGENTS.md`
+projection boundary. The verification boundary is
+`MANUAL_PRESENCE_WITH_DETERMINISTIC_SHAPE`: the schema/helper validates
+disposition shape only, when supplied, and never proves a disposition was
+actually created or is actually present in a real closure/terminal event —
+that remains an accountable workflow/audit obligation, and `DEV-020` adds no
+live closure/terminal enforcement gate against `control/project-control.yaml`.
+A subsequent independent-audit-driven correction round fixed two factual
+documentation defects (an authority-attribution overclaim in `CMP-005` and an
+unclear historical/current framing in `control/learning/README.md`) without
+changing FR-012/ADR-014 substantive semantics, code, schema, or test
+behavior. An independent Codex audit of the complete change returned
+`ACCEPTED_WITH_NONBLOCKING_OBSERVATIONS` with no material blockers, and the
+Project Owner separately accepted the implementation outcome and authorized
+closure under reference `OWNER-ACCEPT-CTRL-CHANGE-014-CLOSURE-2026-09-25`,
+distinct from the earlier implementation-authority and supplemental-authority
+grants. `CTRL-CHANGE-014` is `complete`/`delivered`. That closure does not
+activate Increment B (`FR-009`/`ADR-010`/`DEV-015`) or Increment C
+(`FR-010`/`ADR-011`/`DEV-016`), declare an M3 fixed set or measurement window,
+or authorize M4; Increment B remains a separate future Owner decision.

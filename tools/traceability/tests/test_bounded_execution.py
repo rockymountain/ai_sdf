@@ -189,7 +189,8 @@ class BoundedExecutionTests(unittest.TestCase):
             with self.subTest(usage=usage):
                 scope = f"implicit-{usage.usage_status}"
                 review = self.invocation(execution_scope_id=scope, objective_id=scope,
-                                         invocation_purpose=InvocationPurpose.review)
+                                         invocation_purpose=InvocationPurpose.review,
+                                         human_authorization=AUTH)
                 ControlledInvocationGateway(self.repo, self.store, Port(usage=usage)).invoke(review, "review")
                 before = self.store.fetch(review.invocation_id)
                 self.controller.create_scope(scope, dev_task="DEV-008", objective_id=scope, source_revision="base")
@@ -605,7 +606,7 @@ except ExecutionRejected:
     def test_nonattempt_timeout_stops_scope_without_fake_capacity(self):
         self.short_watchdog()
         port = Port(block_observe=True)
-        inv = self.invocation(invocation_purpose=InvocationPurpose.review)
+        inv = self.invocation(invocation_purpose=InvocationPurpose.review, human_authorization=AUTH)
         ControlledInvocationGateway(self.repo, self.store, port).invoke(inv, "review")
         self.assertEqual([], self.snapshot()["attempts"])
         self.assertEqual([], self.snapshot()["reservations"])
@@ -625,7 +626,8 @@ except ExecutionRejected:
             with self.subTest(version=version):
                 path = self.repo / f"schema-{version}.sqlite3"
                 store = TelemetryStore(path)
-                inv = self.invocation(invocation_purpose=InvocationPurpose.review)
+                inv = self.invocation(invocation_purpose=InvocationPurpose.review,
+                                      human_authorization=AUTH)
                 ControlledInvocationGateway(self.repo, store, Port()).invoke(inv, "review")
                 store.finalize_dev_outcome("DEV-008", task_accepted=True)
                 with closing(sqlite3.connect(path)) as connection, connection:
@@ -691,7 +693,7 @@ except ExecutionRejected:
     def test_migrated_nonattempt_unknown_usage_cannot_reset_scope(self):
         path = self.repo / "legacy-stopped.sqlite3"
         store = TelemetryStore(path)
-        inv = self.invocation(invocation_purpose=InvocationPurpose.review)
+        inv = self.invocation(invocation_purpose=InvocationPurpose.review, human_authorization=AUTH)
         ControlledInvocationGateway(self.repo, store, Port(usage=UsageEvidence.unknown())).invoke(inv, "legacy review")
         with closing(sqlite3.connect(path)) as connection, connection:
             for table in ("execution_evidence", "invocation_attempts", "attempts", "reservations", "execution_scopes"):
