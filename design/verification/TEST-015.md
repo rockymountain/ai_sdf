@@ -3,7 +3,7 @@ id: TEST-015
 kind: verification
 title: Authoritative traceability and risk-attestation policy verification
 status: verified
-version: 2
+version: 3
 verification_type: integration
 ---
 
@@ -21,9 +21,19 @@ and proves:
   escalation_triggers exact eight-value set, non-empty t2_path_triggers) fails
   closed when missing or malformed;
 - malformed or unsupported risk-attestation policy fields fail closed;
-- `requires.risk_attestation` is the sole applicability authority (T0 fixture
-  proves policy-driven applicability; an applicable level with an empty evidence
-  contract fails closed; a non-applicable level may carry a dormant contract);
+- `requires.risk_attestation` is the sole applicability authority: a loader-level
+  T0 fixture proves policy-driven applicability, and a real `validate_change_evidence`
+  T0 transition independently proves the PR enforcement path itself rejects a
+  declaration missing the required checked T0 evidence and accepts it once
+  supplied, with no hidden T0 special case; an applicable level with an empty
+  evidence contract fails closed; a non-applicable level may carry a dormant
+  contract;
+- distinct base and proposed applicable QG-005 evidence contracts (different
+  required strings for the same level) are independently enforced against the
+  same PR task block through the real `validate_change_evidence` path: supplying
+  only one side's string fails the other side's obligation by name, and
+  supplying both passes, without collapsing base/proposed into one opaque
+  merged contract;
 - a base schema/policy is read from the base revision and is immune to a
   corrupted or weakened workspace schema;
 - the pinned bootstrap adapter accepts only the exact legacy base and exact

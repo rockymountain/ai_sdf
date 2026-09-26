@@ -461,6 +461,24 @@ class TraceabilityRiskGateTests(unittest.TestCase):
         self.assertTrue(trace_policy.levels["T0"].requires["risk_attestation"])
         self.assertEqual(("fixture-only T0 attestation",), risk_policy.levels["T0"])
 
+    def test_t0_risk_attestation_is_enforced_through_the_real_pr_path(self):
+        # Loader-level applicability alone is insufficient: this proves the
+        # PR/change-evidence enforcement path itself rejects/accepts based on
+        # canonical requires.risk_attestation for T0, with no hidden special case.
+        def configure(repo):
+            self.edit_yaml(repo, "constitution/policies.yaml", lambda p: (
+                p["traceability"]["levels"]["T0"]["requires"].update(risk_attestation=True),
+                p["risk_attestation"]["levels"]["T0"].update(required_substrings=["fixture-only T0 attestation"]),
+            ))
+        repo, base = self.repository(configure)
+        head = self.commit(repo, ["tools/traceability/validate.py"], "[DEV-009] change")
+        body_without_evidence = "Traceability Task: DEV-009\nTraceability Level: T0\n"
+        errors = self.evidence(repo, base, head, body_without_evidence)
+        self.assertTrue(any("DEV-009 base T0 risk attestation is incomplete" in e for e in errors), errors)
+        self.assertTrue(any("DEV-009 proposed T0 risk attestation is incomplete" in e for e in errors), errors)
+        body_with_evidence = body_without_evidence + "- [x] fixture-only T0 attestation\n"
+        self.assertEqual([], self.evidence(repo, base, head, body_with_evidence))
+
     def test_applicable_level_with_empty_contract_fails_closed(self):
         repo = self.workspace()
         self.edit_yaml(repo, "constitution/policies.yaml",
@@ -635,6 +653,37 @@ class TraceabilityRiskGateTests(unittest.TestCase):
         self.assertTrue(any("DEV-021 base T2 risk attestation is incomplete" in e for e in errors), errors)
         body_with_attestation = body + "- [x] I acknowledge this is a material design change and have linked evidence.\n"
         self.assertEqual([], self.evidence(repo, base, head, body_with_attestation))
+
+    def test_base_and_proposed_risk_contracts_are_independently_enforced(self):
+        # B0 section 27.9: distinct applicable base/proposed evidence contracts
+        # must both be satisfied in the same PR task block, without collapsing
+        # into one opaque merged contract that loses base/proposed identity.
+        def configure(repo):
+            self.edit_yaml(repo, "constitution/policies.yaml",
+                           lambda p: p["risk_attestation"]["levels"]["T2"].update(
+                               required_substrings=["base-only attestation"]))
+        repo, base = self.repository(configure)
+        self.edit_yaml(repo, "constitution/policies.yaml",
+                       lambda p: p["risk_attestation"]["levels"]["T2"].update(
+                           required_substrings=["proposed-only attestation"]))
+        self.edit_yaml(repo, "knowledge/traceability.yaml", lambda d: d["tasks"]["DEV-001"].update(
+            implementation={"paths": d["tasks"]["DEV-001"]["implementation"]["paths"] + [
+                "constitution/policies.yaml", "knowledge/traceability.yaml"]}))
+        head = self.commit(repo, ["src/document_indexing.py"], "[DEV-001] change")
+
+        proposed_only_body = "Traceability Task: DEV-001\nTraceability Level: T2\n- [x] proposed-only attestation\n"
+        errors = self.evidence(repo, base, head, proposed_only_body)
+        self.assertTrue(any("DEV-001 base T2 risk attestation is incomplete" in e for e in errors), errors)
+        self.assertFalse(any("DEV-001 proposed T2 risk attestation is incomplete" in e for e in errors), errors)
+
+        base_only_body = "Traceability Task: DEV-001\nTraceability Level: T2\n- [x] base-only attestation\n"
+        errors = self.evidence(repo, base, head, base_only_body)
+        self.assertTrue(any("DEV-001 proposed T2 risk attestation is incomplete" in e for e in errors), errors)
+        self.assertFalse(any("DEV-001 base T2 risk attestation is incomplete" in e for e in errors), errors)
+
+        both_body = ("Traceability Task: DEV-001\nTraceability Level: T2\n"
+                     "- [x] base-only attestation\n- [x] proposed-only attestation\n")
+        self.assertEqual([], self.evidence(repo, base, head, both_body))
 
     # -- Removed-task fail-closed ---------------------------------------------------
 
