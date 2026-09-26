@@ -221,3 +221,246 @@ tasks:
         - tools/traceability/tests/test_validator.py
         - knowledge/traceability.yaml
         - design/tasks/DEV-010.md
+
+  DEV-011:
+    level: T1
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - NFR-002
+    implementation:
+      paths:
+        - knowledge/traceability.yaml
+        - design/tasks/DEV-011.md
+        - design/verification/TEST-011.md
+        - src/ai_execution/cost_baseline.py
+        - tools/ai_cost_baseline.py
+        - tools/traceability/tests/test_cost_baseline.py
+    verification:
+      - TEST-011
+
+  DEV-012:
+    level: T2
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - NFR-002
+    design:
+      - CMP-004
+    decisions:
+      - ADR-007
+    implementation:
+      paths:
+        - design/architecture/CMP-004.md
+        - design/decisions/ADR-007.md
+        - design/tasks/DEV-012.md
+        - design/verification/TEST-012.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/execution.py
+        - src/ai_execution/store.py
+        - tools/ai_execution.py
+        - tools/traceability/tests/test_ai_execution.py
+        - tools/traceability/tests/test_authorization_adoption.py
+        - tools/traceability/tests/test_bounded_execution.py
+    verification:
+      - TEST-012
+
+  DEV-013:
+    level: T2
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - NFR-002
+    design:
+      - CMP-003
+    decisions:
+      - ADR-006
+      - ADR-008
+    implementation:
+      paths:
+        - design/decisions/ADR-008.md
+        - design/tasks/DEV-013.md
+        - design/verification/TEST-013.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/cost_baseline.py
+        - tools/traceability/tests/test_cost_baseline.py
+    verification:
+      - TEST-013
+
+  DEV-014:
+    level: T2
+    intent:
+      - FR-008
+    design:
+      - CMP-002
+    decisions:
+      - ADR-009
+    implementation:
+      paths:
+        - constitution/quality-gates.yaml
+        - design/requirements/FR-008.md
+        - design/decisions/ADR-009.md
+        - design/tasks/DEV-014.md
+        - design/verification/TEST-014.md
+        - knowledge/traceability.yaml
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_quality_gate.py
+        - tools/traceability/tests/test_validator.py
+    verification:
+      - TEST-014
+
+  DEV-015:
+    level: T2
+    intent:
+      - FR-003
+      - FR-009
+    design:
+      - CMP-002
+    decisions:
+      - ADR-003
+      - ADR-004
+      - ADR-010
+    implementation:
+      paths:
+        - constitution/policies.yaml
+        - constitution/quality-gates.yaml
+        - knowledge/schemas/traceability-policy-gate.schema.json
+        - knowledge/schemas/risk-attestation-gate.schema.json
+        - design/architecture/CMP-002.md
+        - .github/PULL_REQUEST_TEMPLATE.md
+        - design/requirements/FR-009.md
+        - design/decisions/ADR-010.md
+        - design/tasks/DEV-015.md
+        - design/verification/TEST-015.md
+        - knowledge/traceability.yaml
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_change_provenance.py
+        - tools/traceability/tests/test_quality_gate.py
+        - tools/traceability/tests/test_validator.py
+    verification:
+      - TEST-015
+
+  DEV-016:
+    level: T2
+    intent:
+      - FR-010
+    design:
+      - CMP-002
+    decisions:
+      - ADR-011
+    implementation:
+      paths:
+        - constitution/quality-gates.yaml
+        - .github/PULL_REQUEST_TEMPLATE.md
+        - design/requirements/FR-010.md
+        - design/decisions/ADR-011.md
+        - design/tasks/DEV-016.md
+        - design/verification/TEST-016.md
+        - knowledge/traceability.yaml
+    verification:
+      - TEST-016
+
+  DEV-017:
+    level: T2
+    intent:
+      - PROB-002
+      - FR-006
+      - FR-007
+      - FR-011
+      - NFR-002
+    design:
+      - CMP-003
+      - CMP-004
+    decisions:
+      - ADR-006
+      - ADR-007
+      - ADR-008
+      - ADR-012
+    implementation:
+      paths:
+        - design/requirements/FR-011.md
+        - design/architecture/CMP-003.md
+        - design/decisions/ADR-012.md
+        - design/tasks/DEV-017.md
+        - design/verification/TEST-017.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/__init__.py
+        - src/ai_execution/claude_adapter.py
+        - src/ai_execution/codex_adapter.py
+        - src/ai_execution/cost_baseline.py
+        - tools/ai_execution.py
+        - tools/traceability/tests/test_cost_baseline.py
+        - tools/traceability/tests/test_dual_runtime.py
+    verification:
+      - TEST-017
+
+  DEV-018:
+    level: T1
+    intent:
+      - FR-006
+      - FR-007
+      - FR-011
+    design:
+      - CMP-003
+    decisions:
+      - ADR-006
+      - ADR-012
+    implementation:
+      paths:
+        - design/tasks/DEV-018.md
+        - design/verification/TEST-018.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/claude_adapter.py
+        - tools/ai_execution.py
+        - tools/traceability/tests/test_claude_runtime_version.py
+        - tools/traceability/tests/test_dual_runtime.py
+    verification:
+      - TEST-018
+
+  DEV-019:
+    level: T2
+    intent:
+      - FR-006
+      - FR-011
+    design:
+      - CMP-003
+    decisions:
+      - ADR-013
+    implementation:
+      paths:
+        - design/decisions/ADR-013.md
+        - design/tasks/DEV-019.md
+        - design/verification/TEST-019.md
+        - knowledge/traceability.yaml
+        - src/ai_execution/context_effect.py
+        - tools/traceability/tests/test_context_effect.py
+    verification:
+      - TEST-019
+
+  DEV-020:
+    level: T2
+    intent:
+      - FR-012
+    design:
+      - CMP-005
+    decisions:
+      - ADR-014
+    implementation:
+      paths:
+        - design/architecture/CMP-005.md
+        - design/requirements/FR-012.md
+        - design/decisions/ADR-014.md
+        - design/tasks/DEV-020.md
+        - design/verification/TEST-020.md
+        - knowledge/traceability.yaml
+        - constitution/agent-runtime.yaml
+        - AGENTS.md
+        - knowledge/schemas/learning-disposition.schema.json
+        - tools/traceability/validate.py
+        - tools/traceability/tests/test_learning_disposition.py
+        - control/learning/README.md
+    verification:
+      - TEST-020

@@ -19,6 +19,7 @@ from ai_execution.gateway import ControlledInvocationGateway, InvocationRejected
 from ai_execution.model import (
     ContextStrategy,
     ControlledAIInvocation,
+    HumanAuthorization,
     InvocationPurpose,
     ModelSelectionStrategy,
     TerminalReason,
@@ -37,6 +38,14 @@ from ai_execution.runtime import (
 from ai_execution.store import SCHEMA_VERSION, TelemetryStore
 
 
+AUTH = HumanAuthorization(
+    "project-owner",
+    "2026-09-23T09:00:00+07:00",
+    "authorized deterministic validation",
+    "allow read-only invocation",
+)
+
+
 def invocation(**changes) -> ControlledAIInvocation:
     values = {
         "dev_task": "DEV-007",
@@ -49,6 +58,7 @@ def invocation(**changes) -> ControlledAIInvocation:
         "model_selection_strategy": ModelSelectionStrategy.manual,
         "context_strategy": ContextStrategy.chat_heavy,
         "requested_model": "requested-model",
+        "human_authorization": AUTH,
     }
     values.update(changes)
     return ControlledAIInvocation(**values)

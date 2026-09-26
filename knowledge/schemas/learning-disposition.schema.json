@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "value",
+    "rationale"
+  ],
+  "properties": {
+    "value": {
+      "type": "string",
+      "enum": [
+        "NEW_LEARNING_CANDIDATE",
+        "EXISTING_LEARNING_REINFORCED",
+        "NO_REUSABLE_LEARNING"
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

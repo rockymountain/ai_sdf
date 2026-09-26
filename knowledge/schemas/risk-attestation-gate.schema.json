@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate", "policy"],
+  "properties": {
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "deterministic", "blocks_merge", "scope", "policy"],
+      "properties": {
+        "id": {"const": "QG-005"},
+        "name": {"const": "risk-attestation"},
+        "deterministic": {"const": true},
+        "blocks_merge": {"const": true},
+        "policy": {"const": "risk_attestation"},
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["event"],
+          "properties": {
+            "event": {"const": "pull_request"}
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_source", "evidence_format", "match_mode", "levels"],
+      "properties": {
+        "evidence_source": {"const": "pull_request_body"},
+        "evidence_format": {"const": "checked_markdown_line"},
+        "match_mode": {"const": "case_insensitive_substring"},
+        "levels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["T0", "T1", "T2"],
+          "properties": {
+            "T0": {"$ref": "#/$defs/level"},
+            "T1": {"$ref": "#/$defs/level"},
+            "T2": {"$ref": "#/$defs/level"}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_substrings"],
+      "properties": {
+        "required_substrings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

@@ -24,6 +24,13 @@ class ExecutionRejected(ValueError):
     autonomous_follow_on_allowed = False
 
 
+NONIMPLEMENTATION_AUTHORIZED_PURPOSES = frozenset({
+    InvocationPurpose.acceptance_validation,
+    InvocationPurpose.review,
+    InvocationPurpose.orchestration,
+})
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS execution_scopes (
     execution_scope_id TEXT PRIMARY KEY,
@@ -86,6 +93,13 @@ def _authorization(value):
     if not isinstance(value, HumanAuthorization):
         raise ExecutionRejected("explicit recorded human authorization is required")
     return json.dumps(asdict(value), sort_keys=True)
+
+
+def validate_start_authorization(invocation):
+    """Validate prospective per-invocation authority before start persistence."""
+    if invocation.invocation_purpose in NONIMPLEMENTATION_AUTHORIZED_PURPOSES:
+        return json.loads(_authorization(invocation.human_authorization))
+    return None
 
 
 def _text(value, name):
@@ -235,7 +249,7 @@ def _refresh_scope_state(connection, scope_id, *, active_invocation_id=None):
     return _scope(connection, scope_id)
 
 
-def authorize_start(connection, invocation, max_attempts):
+def authorize_start(connection, invocation, max_attempts, *, nonimplementation_authorization=None):
     """Called inside the same transaction that persists invocation start."""
     scope_id = invocation.execution_scope_id
     purpose = invocation.invocation_purpose
@@ -273,9 +287,18 @@ def authorize_start(connection, invocation, max_attempts):
             invocation.attempt_number, invocation.resume_of_invocation_id,
         )):
             raise ExecutionRejected("non-implementation purpose cannot claim attempt identity")
+        if purpose in NONIMPLEMENTATION_AUTHORIZED_PURPOSES:
+            if nonimplementation_authorization is None:
+                raise ExecutionRejected("explicit recorded human authorization is required")
+            _event(
+                connection,
+                scope_id,
+                "nonimplementation_authorized",
+                nonimplementation_authorization,
+                invocation_id=invocation.invocation_id,
+            )
         if scope["state"] == "STOPPED":
-            authorization = _authorization(invocation.human_authorization)
-            _event(connection, scope_id, "non_mutating_disposition", json.loads(authorization),
+            _event(connection, scope_id, "non_mutating_disposition", nonimplementation_authorization,
                    invocation_id=invocation.invocation_id)
         return
     if invocation.objective_id != scope["objective_id"]:

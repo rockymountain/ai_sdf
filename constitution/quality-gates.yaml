@@ -12,6 +12,7 @@ gates:
     name: traceability-policy
     deterministic: true
     blocks_merge: true
+    policy: traceability
   - id: QG-004
     name: implementation-evidence
     deterministic: true
@@ -24,6 +25,9 @@ gates:
     name: risk-attestation
     deterministic: true
     blocks_merge: true
+    scope:
+      event: pull_request
+    policy: risk_attestation
   - id: QG-006
     name: human-review
     deterministic: false

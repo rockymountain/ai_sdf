@@ -48,6 +48,24 @@ traceability:
   - design/contracts/**
   - migrations/**
   - infra/**
+risk_attestation:
+  evidence_source: pull_request_body
+  evidence_format: checked_markdown_line
+  match_mode: case_insensitive_substring
+  levels:
+    T0:
+      required_substrings: []
+    T1:
+      required_substrings:
+      - "does **NOT** affect architecture"
+      - "does **NOT** affect NFRs"
+      - "does **NOT** affect security"
+      - "does **NOT** affect persistent data"
+      - "does **NOT** affect public/external API"
+      - "does **NOT** create a compliance"
+    T2:
+      required_substrings:
+      - "material design change"
 artifact_identity:
   source: yaml_frontmatter
   filename_is_identity: false
