@@ -159,7 +159,7 @@ class ChangeProvenanceTests(unittest.TestCase):
         head = self.commit(repo, ["src/document_indexing.py", "tools/traceability/validate.py"])
         errors = self.evidence(repo, base, head, self.body() + self.body("DEV-002", attestation=False))
         self.assertTrue(any("required marker [DEV-002]" in e for e in errors), errors)
-        self.assertTrue(any("DEV-002 T2 risk attestation is incomplete" in e for e in errors), errors)
+        self.assertTrue(any("DEV-002" in e and "T2 risk attestation is incomplete" in e for e in errors), errors)
 
     def test_invalid_declarations_fail(self):
         repo, base = self.repository()

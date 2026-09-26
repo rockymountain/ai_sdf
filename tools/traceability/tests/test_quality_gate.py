@@ -327,5 +327,360 @@ class StructuralGateTests(unittest.TestCase):
         self.assertFalse(result.errors, result.errors)
 
 
+class TraceabilityRiskGateTests(unittest.TestCase):
+    """TEST-015: QG-003 traceability-policy / QG-005 risk-attestation authoritative
+    binding, base/proposed self-protection, and the pinned pre-Increment-B bootstrap."""
+
+    git = staticmethod(provenance.ChangeProvenanceTests.git)
+    repository = provenance.ChangeProvenanceTests.repository
+    commit = provenance.ChangeProvenanceTests.commit
+    body = staticmethod(provenance.ChangeProvenanceTests.body)
+    evidence = provenance.ChangeProvenanceTests.evidence
+    edit_yaml = staticmethod(provenance.ChangeProvenanceTests.edit_yaml)
+    edit_structural_gate = QualityGateTests.edit_structural_gate
+
+    def workspace(self):
+        td, repo = copy_repo()
+        self.addCleanup(td.cleanup)
+        return repo
+
+    def legacy_gates(self, repo):
+        self.edit_structural_gate(repo, "QG-003", lambda g: g.pop("policy"))
+        self.edit_structural_gate(repo, "QG-005", lambda g: (g.pop("scope"), g.pop("policy")))
+
+    # -- Valid canonical configuration -----------------------------------------
+
+    def test_valid_canonical_configuration(self):
+        trace_policy, risk_policy = validator.load_traceability_and_risk_gates(self.workspace())
+        self.assertEqual({"T0", "T1", "T2"}, set(trace_policy.levels))
+        self.assertEqual(8, len(trace_policy.escalation_triggers))
+        self.assertTrue(trace_policy.t2_path_triggers)
+        self.assertEqual((), risk_policy.levels["T0"])
+        self.assertEqual(6, len(risk_policy.levels["T1"]))
+        self.assertEqual(("material design change",), risk_policy.levels["T2"])
+
+    # -- QG-003 / QG-005 declaration failures -----------------------------------
+
+    def test_qg003_and_qg005_declaration_failures_fail_closed(self):
+        for gate_id in ("QG-003", "QG-005"):
+            for change in ({"deterministic": False}, {"blocks_merge": False},
+                           {"name": "renamed"}, {"unexpected": True}):
+                with self.subTest(gate_id=gate_id, change=change):
+                    repo = self.workspace()
+                    self.edit_structural_gate(repo, gate_id, lambda g, change=change: g.update(change))
+                    with self.assertRaises(ValueError):
+                        validator.load_traceability_and_risk_gates(repo)
+            with self.subTest(gate_id=gate_id, change="missing"):
+                repo = self.workspace()
+                self.edit_yaml(repo, "constitution/quality-gates.yaml",
+                               lambda doc, gate_id=gate_id: doc.update(gates=[g for g in doc["gates"] if g["id"] != gate_id]))
+                with self.assertRaisesRegex(ValueError, f"mandatory {gate_id} declaration is missing"):
+                    validator.load_traceability_and_risk_gates(repo)
+            with self.subTest(gate_id=gate_id, change="duplicate"):
+                repo = self.workspace()
+                self.edit_yaml(repo, "constitution/quality-gates.yaml",
+                               lambda doc, gate_id=gate_id: doc["gates"].append(
+                                   next(g.copy() for g in doc["gates"] if g["id"] == gate_id)))
+                with self.assertRaisesRegex(ValueError, f"mandatory {gate_id} declaration is missing or duplicated"):
+                    validator.load_traceability_and_risk_gates(repo)
+
+        repo = self.workspace()
+        self.edit_structural_gate(repo, "QG-003", lambda g: g.update(policy="wrong"))
+        with self.assertRaises(ValueError):
+            validator.load_traceability_and_risk_gates(repo)
+        repo = self.workspace()
+        self.edit_structural_gate(repo, "QG-005", lambda g: g.update(policy="wrong"))
+        with self.assertRaises(ValueError):
+            validator.load_traceability_and_risk_gates(repo)
+        repo = self.workspace()
+        self.edit_structural_gate(repo, "QG-005", lambda g: g["scope"].update(event="push"))
+        with self.assertRaises(ValueError):
+            validator.load_traceability_and_risk_gates(repo)
+
+    # -- Trace-policy / risk-policy completeness --------------------------------
+
+    def test_trace_policy_completeness_fails_closed(self):
+        booleans = ("upstream_intent", "design", "decision_or_contract", "implementation", "verification", "risk_attestation")
+        cases = [
+            lambda p: p["traceability"]["levels"].pop("T0"),
+            lambda p: p["traceability"]["levels"].update(T3={"description": "x", "requires": {k: False for k in booleans}}),
+            lambda p: p["traceability"]["levels"]["T2"].pop("description"),
+            lambda p: p["traceability"]["levels"]["T2"].update(description=""),
+            lambda p: p["traceability"]["levels"]["T2"].pop("requires"),
+            lambda p: p["traceability"]["levels"]["T2"]["requires"].pop("design"),
+            lambda p: p["traceability"]["levels"]["T2"]["requires"].update(design="yes"),
+            lambda p: p["traceability"]["levels"]["T2"]["requires"].update(extra=True),
+            lambda p: p["traceability"].update(escalation_triggers=[]),
+            lambda p: p["traceability"]["escalation_triggers"].remove("security"),
+            lambda p: p["traceability"]["escalation_triggers"].append("architecture"),
+            lambda p: p["traceability"]["escalation_triggers"].append("unknown_trigger"),
+            lambda p: p["traceability"].pop("t2_path_triggers"),
+            lambda p: p["traceability"].update(t2_path_triggers=[]),
+            lambda p: p["traceability"].update(t2_path_triggers=[""]),
+        ]
+        for index, mutate in enumerate(cases):
+            with self.subTest(case=index):
+                repo = self.workspace()
+                self.edit_yaml(repo, "constitution/policies.yaml", mutate)
+                with self.assertRaises(ValueError):
+                    validator.load_traceability_and_risk_gates(repo)
+
+    def test_risk_policy_completeness_fails_closed(self):
+        cases = [
+            lambda p: p.pop("risk_attestation"),
+            lambda p: p["risk_attestation"].pop("evidence_source"),
+            lambda p: p["risk_attestation"].update(evidence_source="unsupported"),
+            lambda p: p["risk_attestation"].pop("evidence_format"),
+            lambda p: p["risk_attestation"].update(evidence_format="unsupported"),
+            lambda p: p["risk_attestation"].pop("match_mode"),
+            lambda p: p["risk_attestation"].update(match_mode="unsupported"),
+            lambda p: p["risk_attestation"]["levels"].pop("T1"),
+            lambda p: p["risk_attestation"]["levels"].update(T3={"required_substrings": []}),
+            lambda p: p["risk_attestation"]["levels"]["T1"].pop("required_substrings"),
+            lambda p: p["risk_attestation"]["levels"]["T1"]["required_substrings"].append(
+                p["risk_attestation"]["levels"]["T1"]["required_substrings"][0]),
+            lambda p: p["risk_attestation"]["levels"]["T1"]["required_substrings"].append(""),
+            lambda p: p["risk_attestation"]["levels"]["T1"].update(extra=True),
+        ]
+        for index, mutate in enumerate(cases):
+            with self.subTest(case=index):
+                repo = self.workspace()
+                self.edit_yaml(repo, "constitution/policies.yaml", mutate)
+                with self.assertRaises(ValueError):
+                    validator.load_traceability_and_risk_gates(repo)
+
+    # -- Applicability / evidence separation ------------------------------------
+
+    def test_t0_fixture_proves_policy_driven_applicability(self):
+        repo = self.workspace()
+        self.edit_yaml(repo, "constitution/policies.yaml", lambda p: (
+            p["traceability"]["levels"]["T0"]["requires"].update(risk_attestation=True),
+            p["risk_attestation"]["levels"]["T0"].update(required_substrings=["fixture-only T0 attestation"]),
+        ))
+        trace_policy, risk_policy = validator.load_traceability_and_risk_gates(repo)
+        self.assertTrue(trace_policy.levels["T0"].requires["risk_attestation"])
+        self.assertEqual(("fixture-only T0 attestation",), risk_policy.levels["T0"])
+
+    def test_applicable_level_with_empty_contract_fails_closed(self):
+        repo = self.workspace()
+        self.edit_yaml(repo, "constitution/policies.yaml",
+                       lambda p: p["traceability"]["levels"]["T0"]["requires"].update(risk_attestation=True))
+        with self.assertRaisesRegex(ValueError, "applicable but has no required evidence"):
+            validator.load_traceability_and_risk_gates(repo)
+
+    def test_non_applicable_level_may_carry_populated_contract(self):
+        repo = self.workspace()
+        self.edit_yaml(repo, "constitution/policies.yaml",
+                       lambda p: p["risk_attestation"]["levels"]["T0"].update(required_substrings=["dormant"]))
+        trace_policy, risk_policy = validator.load_traceability_and_risk_gates(repo)
+        self.assertFalse(trace_policy.levels["T0"].requires["risk_attestation"])
+        self.assertEqual(("dormant",), risk_policy.levels["T0"])
+
+    # -- Schema provenance -------------------------------------------------------
+
+    def test_base_schema_provenance_is_immune_to_workspace_schema_mutation(self):
+        for schema_path in (validator.QG003_SCHEMA, validator.QG005_SCHEMA):
+            with self.subTest(schema=schema_path):
+                repo, base = self.repository()
+                (repo / schema_path).write_text("not valid json", encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    validator.load_traceability_and_risk_gates(repo)
+                trace_policy, risk_policy = validator.load_traceability_and_risk_gates(repo, base)
+                self.assertIn("T2", trace_policy.levels)
+                self.assertEqual(("material design change",), risk_policy.levels["T2"])
+
+    # -- Bootstrap ----------------------------------------------------------------
+
+    def test_bootstrap_pinned_legacy_happy_path(self):
+        repo, base = self.repository(self.legacy_gates)
+        with self.assertRaises(ValueError):
+            validator.load_traceability_and_risk_gates(repo, base)
+        with patch.object(validator, "QG003_QG005_BOOTSTRAP_BASE", base):
+            trace_policy, risk_policy = validator.load_traceability_and_risk_gates(repo, base)
+            self.assertEqual({"T0", "T1", "T2"}, set(trace_policy.levels))
+            self.assertEqual(risk_policy.levels["T1"], validator.LEGACY_RISK_ATTESTATION_SUBSTRINGS["T1"])
+            self.assertEqual(risk_policy.levels["T2"], validator.LEGACY_RISK_ATTESTATION_SUBSTRINGS["T2"])
+            # Legacy shape in the workspace never triggers bootstrap treatment.
+            with self.assertRaises(ValueError):
+                validator.load_traceability_and_risk_gates(repo)
+
+    def test_bootstrap_wrong_revision_is_rejected(self):
+        repo, historical = self.repository(self.legacy_gates)
+        with self.assertRaises(ValueError):
+            validator.load_traceability_and_risk_gates(repo, historical)
+
+    def test_bootstrap_declaration_failures_fail_closed(self):
+        for gate_id in ("QG-003", "QG-005"):
+            with self.subTest(gate_id=gate_id, case="missing"):
+                def missing(repo, gate_id=gate_id):
+                    self.legacy_gates(repo)
+                    self.edit_yaml(repo, "constitution/quality-gates.yaml",
+                                   lambda doc, gate_id=gate_id: doc.update(gates=[g for g in doc["gates"] if g["id"] != gate_id]))
+                repo, base = self.repository(missing)
+                with patch.object(validator, "QG003_QG005_BOOTSTRAP_BASE", base):
+                    with self.assertRaises(ValueError):
+                        validator.load_traceability_and_risk_gates(repo, base)
+            for change in ({"deterministic": False}, {"blocks_merge": False}, {"extra": True}):
+                with self.subTest(gate_id=gate_id, case=change):
+                    def malformed(repo, gate_id=gate_id, change=change):
+                        self.legacy_gates(repo)
+                        self.edit_structural_gate(repo, gate_id, lambda g, change=change: g.update(change))
+                    repo, base = self.repository(malformed)
+                    with patch.object(validator, "QG003_QG005_BOOTSTRAP_BASE", base):
+                        with self.assertRaises(ValueError):
+                            validator.load_traceability_and_risk_gates(repo, base)
+
+    def test_bootstrap_ignores_proposed_schema_and_risk_policy(self):
+        repo, base = self.repository(self.legacy_gates)
+        (repo / validator.QG003_SCHEMA).write_text("not valid json", encoding="utf-8")
+        (repo / validator.QG005_SCHEMA).write_text("not valid json", encoding="utf-8")
+        self.edit_yaml(repo, "constitution/policies.yaml",
+                       lambda p: p["risk_attestation"]["levels"]["T2"].update(required_substrings=["a different phrase"]))
+        with patch.object(validator, "QG003_QG005_BOOTSTRAP_BASE", base):
+            _, risk_policy = validator.load_traceability_and_risk_gates(repo, base)
+            self.assertEqual(("material design change",), risk_policy.levels["T2"])
+
+    # -- Existing-task transition -------------------------------------------------
+
+    def test_existing_t2_to_t1_transition_cannot_delete_base_required_evidence(self):
+        repo, base = self.repository()
+        self.edit_yaml(repo, "knowledge/traceability.yaml", lambda d: d["tasks"]["DEV-001"].update(
+            level="T1", design=[], decisions=[], contracts=[],
+            implementation={"paths": d["tasks"]["DEV-001"]["implementation"]["paths"] + [
+                "knowledge/traceability.yaml", "design/tasks/DEV-001.md"]},
+        ))
+        path = repo / "design/tasks/DEV-001.md"
+        metadata = validator.extract_frontmatter(path)
+        metadata["traceability_level"] = "T1"
+        path.write_text("---\n" + yaml.safe_dump(metadata) + "---\n", encoding="utf-8")
+        head = self.commit(repo, ["src/document_indexing.py"], "[DEV-001] downgrade")
+        errors = self.evidence(repo, base, head, self.body(level="T1"))
+        self.assertTrue(any("DEV-001 (base T2): requires design evidence" in e for e in errors), errors)
+        self.assertTrue(any("DEV-001 (base T2): requires at least one decision or contract" in e for e in errors), errors)
+
+    def test_existing_t2_to_t1_transition_succeeds_when_base_evidence_survives(self):
+        repo, base = self.repository()
+        self.edit_yaml(repo, "knowledge/traceability.yaml", lambda d: d["tasks"]["DEV-001"].update(
+            level="T1",
+            implementation={"paths": d["tasks"]["DEV-001"]["implementation"]["paths"] + [
+                "knowledge/traceability.yaml", "design/tasks/DEV-001.md"]},
+        ))
+        path = repo / "design/tasks/DEV-001.md"
+        metadata = validator.extract_frontmatter(path)
+        metadata["traceability_level"] = "T1"
+        path.write_text("---\n" + yaml.safe_dump(metadata) + "---\n", encoding="utf-8")
+        head = self.commit(repo, ["src/document_indexing.py"], "[DEV-001] downgrade")
+        body = self.body(level="T1") + "- [x] I acknowledge this is a material design change and have linked evidence.\n"
+        self.assertEqual([], self.evidence(repo, base, head, body))
+
+    def test_existing_t1_to_t2_upgrade_enforces_proposed_requirement(self):
+        # Risk attestation (never checked statically) isolates the cross-revision
+        # applicability check from static design/decision/verification requirements.
+        def configure(repo):
+            self.edit_yaml(repo, "knowledge/traceability.yaml", lambda d: d["tasks"]["DEV-001"].update(
+                level="T1",
+                implementation={"paths": d["tasks"]["DEV-001"]["implementation"]["paths"] + [
+                    "knowledge/traceability.yaml", "design/tasks/DEV-001.md"]},
+            ))
+            path = repo / "design/tasks/DEV-001.md"
+            metadata = validator.extract_frontmatter(path)
+            metadata["traceability_level"] = "T1"
+            path.write_text("---\n" + yaml.safe_dump(metadata) + "---\n", encoding="utf-8")
+            # Base-only policy weakening: base T1 does not require risk attestation.
+            self.edit_yaml(repo, "constitution/policies.yaml",
+                           lambda p: p["traceability"]["levels"]["T1"]["requires"].update(risk_attestation=False))
+        repo, base = self.repository(configure)
+        self.edit_yaml(repo, "knowledge/traceability.yaml", lambda d: d["tasks"]["DEV-001"].update(level="T2"))
+        path = repo / "design/tasks/DEV-001.md"
+        metadata = validator.extract_frontmatter(path)
+        metadata["traceability_level"] = "T2"
+        path.write_text("---\n" + yaml.safe_dump(metadata) + "---\n", encoding="utf-8")
+        head = self.commit(repo, ["src/document_indexing.py"], "[DEV-001] upgrade")
+        for attest in (False, True):
+            with self.subTest(attest=attest):
+                body = "Traceability Task: DEV-001\nTraceability Level: T2\n"
+                if attest:
+                    body += "- [x] I acknowledge this is a material design change and have linked evidence.\n"
+                errors = self.evidence(repo, base, head, body)
+                if attest:
+                    self.assertEqual([], errors)
+                else:
+                    self.assertTrue(any("DEV-001 proposed T2 risk attestation is incomplete" in e for e in errors), errors)
+                    self.assertFalse(any("DEV-001 base T1 risk attestation is incomplete" in e for e in errors), errors)
+
+    # -- New-task base-policy projection -------------------------------------------
+
+    def test_new_task_cannot_self_waive_base_risk_requirement(self):
+        repo, base = self.repository()
+        self.edit_yaml(repo, "knowledge/traceability.yaml", lambda d: d["tasks"].update(**{
+            "DEV-021": {
+                "level": "T2", "intent": ["FR-001"], "design": ["CMP-001"],
+                "decisions": ["ADR-001"], "verification": ["TEST-001"],
+                "implementation": {"paths": [
+                    "src/document_indexing.py", "knowledge/traceability.yaml", "design/tasks/DEV-021.md",
+                    "constitution/policies.yaml"]},
+            },
+        }))
+        (repo / "design/tasks/DEV-021.md").write_text(
+            "---\nid: DEV-021\nkind: task\ntitle: New task\nstatus: proposed\nversion: 1\n"
+            "traceability_level: T2\nowner: factory-maintainer\n---\n# New task\n",
+            encoding="utf-8",
+        )
+        # Proposed governance weakens T2 risk applicability; canonical base policy still requires it.
+        self.edit_yaml(repo, "constitution/policies.yaml",
+                       lambda p: p["traceability"]["levels"]["T2"]["requires"].update(risk_attestation=False))
+        head = self.commit(repo, ["src/document_indexing.py", "design/tasks/DEV-021.md"], "[DEV-021] new task")
+        body = "Traceability Task: DEV-021\nTraceability Level: T2\n"
+        errors = self.evidence(repo, base, head, body)
+        self.assertTrue(any("DEV-021 base T2 risk attestation is incomplete" in e for e in errors), errors)
+        body_with_attestation = body + "- [x] I acknowledge this is a material design change and have linked evidence.\n"
+        self.assertEqual([], self.evidence(repo, base, head, body_with_attestation))
+
+    # -- Removed-task fail-closed ---------------------------------------------------
+
+    def test_pr_relevant_removed_task_fails_closed(self):
+        repo, base = self.repository()
+        self.edit_yaml(repo, "knowledge/traceability.yaml", lambda d: d["tasks"].pop("DEV-002"))
+        (repo / "design/tasks/DEV-002.md").unlink()
+        head = self.commit(
+            repo, ["src/document_indexing.py", "tools/traceability/tests/test_validator.py"],
+            "[DEV-001] remove DEV-002",
+        )
+        # Path-matched removal without declaration.
+        errors = self.evidence(repo, base, head, self.body())
+        self.assertTrue(
+            any("DEV-002: base task is relevant to this PR but is absent from proposed traceability" in e for e in errors),
+            errors,
+        )
+        # Declared removal.
+        errors_declared = self.evidence(repo, base, head, self.body("DEV-002"))
+        self.assertTrue(any("not present in traceability" in e for e in errors_declared), errors_declared)
+        self.assertTrue(
+            any("DEV-002: base task is relevant" in e for e in errors_declared),
+            errors_declared,
+        )
+
+    # -- T2 path base/proposed protection --------------------------------------------
+
+    def test_removing_proposed_t2_path_trigger_cannot_disable_base_protection(self):
+        repo, base = self.repository()
+        self.edit_yaml(repo, "constitution/policies.yaml",
+                       lambda p: p["traceability"].update(t2_path_triggers=["nonexistent/**"]))
+        head = self.commit(repo, ["src/document_indexing.py", "design/architecture/CMP-001.md"], "[DEV-001] change")
+        errors = self.evidence(repo, base, head, self.body())
+        self.assertTrue(any("hit T2 path triggers" in e for e in errors), errors)
+
+    # -- Regression safety -------------------------------------------------------------
+
+    def test_regression_families_remain_passing_alongside_new_gates(self):
+        repo = self.workspace()
+        result, _, _ = ValidatorTests().run_static(repo)
+        self.assertEqual([], result.errors, result.errors)
+        structural = validator.load_structural_gates(repo)
+        self.assertEqual(2, len(structural))
+        gate = validator.load_implementation_evidence_gate(repo)
+        self.assertEqual(("T1", "T2"), gate.levels)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -27,6 +27,30 @@ QG004_SCHEMA = "knowledge/schemas/implementation-evidence-gate.schema.json"
 AUTONOMOUS_EXECUTION_SCHEMA = "knowledge/schemas/autonomous-execution-policy.schema.json"
 STRUCTURAL_GATES = {"QG-001": "artifact-schema", "QG-002": "reference-integrity"}
 LEARNING_DISPOSITION_SCHEMA = "knowledge/schemas/learning-disposition.schema.json"
+QG003_SCHEMA = "knowledge/schemas/traceability-policy-gate.schema.json"
+QG005_SCHEMA = "knowledge/schemas/risk-attestation-gate.schema.json"
+# Increment B (DEV-015) migration-only compatibility adapter: pinned to the exact
+# pre-Increment-B base authorized by Owner Gate B-A. Never a branch name/HEAD~n.
+QG003_QG005_BOOTSTRAP_BASE = "305d51446e3823f3b990668a2af120dc7b295d6e"
+ESCALATION_TRIGGERS = frozenset({
+    "architecture", "nfr", "security", "data_model",
+    "external_contract", "reliability", "compliance", "migration",
+})
+# Pre-Increment-B has_risk_attestation() evidence semantics, preserved as migration-only
+# bootstrap compatibility data. The identical values are also the canonical production
+# risk_attestation policy content, but that policy is read from governance, never from here.
+LEGACY_RISK_ATTESTATION_SUBSTRINGS: dict[str, tuple[str, ...]] = {
+    "T0": (),
+    "T1": (
+        "does **NOT** affect architecture",
+        "does **NOT** affect NFRs",
+        "does **NOT** affect security",
+        "does **NOT** affect persistent data",
+        "does **NOT** affect public/external API",
+        "does **NOT** create a compliance",
+    ),
+    "T2": ("material design change",),
+}
 
 SCHEMA_BY_KIND = {
     "problem": "problem.schema.json",
@@ -119,6 +143,27 @@ class ChangeOwnerDeclaration:
     kind: str
 
 
+@dataclass(frozen=True)
+class LevelPolicy:
+    description: str
+    requires: dict[str, bool]
+
+
+@dataclass(frozen=True)
+class TracePolicy:
+    levels: dict[str, LevelPolicy]
+    escalation_triggers: tuple[str, ...]
+    t2_path_triggers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RiskAttestationPolicy:
+    evidence_source: str
+    evidence_format: str
+    match_mode: str
+    levels: dict[str, tuple[str, ...]]
+
+
 def load_implementation_evidence_gate(repo: Path, ref: str | None = None) -> ImplementationEvidenceGate:
     """Load one supported gate, not a general policy interpreter. No permissive defaults."""
     try:
@@ -187,6 +232,133 @@ def load_structural_gates(repo: Path, ref: str | None = None) -> tuple[Structura
         return tuple(resolved)
     except (OSError, RuntimeError, ValueError, TypeError, KeyError, yaml.YAMLError) as exc:
         raise ValueError(f"structural gate governance ({ref or 'workspace'}): {exc}") from exc
+
+
+def _validate_risk_applicability_invariant(trace_policy: TracePolicy, risk_policy: RiskAttestationPolicy) -> None:
+    """FR-009/ADR-010: requires.risk_attestation is the sole applicability authority;
+    an applicable level must select a non-empty QG-005 evidence contract."""
+    for level, level_policy in trace_policy.levels.items():
+        if level_policy.requires.get("risk_attestation") and not risk_policy.levels.get(level):
+            raise ValueError(f"risk_attestation policy: level {level} is applicable but has no required evidence")
+
+
+def _parse_legacy_traceability_policy(policies_doc: dict[str, Any]) -> TracePolicy:
+    """DEV-015 bootstrap only: reconstruct the pre-Increment-B traceability policy
+    shape already present at the pinned base, without consulting the new schema."""
+    required_fields = {
+        "upstream_intent", "design", "decision_or_contract",
+        "implementation", "verification", "risk_attestation",
+    }
+    raw = policies_doc.get("traceability")
+    if not isinstance(raw, dict) or set(raw) != {"levels", "escalation_triggers", "t2_path_triggers"}:
+        raise ValueError("legacy traceability policy must contain exactly levels, escalation_triggers, t2_path_triggers")
+    levels_raw = raw["levels"]
+    if not isinstance(levels_raw, dict) or set(levels_raw) != {"T0", "T1", "T2"}:
+        raise ValueError("legacy traceability policy levels must be exactly T0, T1, T2")
+    levels = {}
+    for level, data in levels_raw.items():
+        if (not isinstance(data, dict) or set(data) != {"description", "requires"}
+                or not isinstance(data["description"], str) or not data["description"]
+                or not isinstance(data["requires"], dict) or set(data["requires"]) != required_fields
+                or any(type(v) is not bool for v in data["requires"].values())):
+            raise ValueError(f"legacy traceability policy level {level} has unsupported shape")
+        levels[level] = LevelPolicy(data["description"], dict(data["requires"]))
+    triggers = raw["escalation_triggers"]
+    if not isinstance(triggers, list) or len(triggers) != len(set(triggers)) or set(triggers) != ESCALATION_TRIGGERS:
+        raise ValueError("legacy escalation_triggers must be exactly the supported eight-value set")
+    path_triggers = raw["t2_path_triggers"]
+    if (not isinstance(path_triggers, list) or not path_triggers
+            or any(not isinstance(p, str) or not p for p in path_triggers)):
+        raise ValueError("legacy t2_path_triggers must be a non-empty list of nonempty path patterns")
+    return TracePolicy(levels, tuple(triggers), tuple(path_triggers))
+
+
+def load_traceability_and_risk_gates(repo: Path, ref: str | None = None) -> tuple[TracePolicy, RiskAttestationPolicy]:
+    """Bind QG-003 (traceability-policy) and QG-005 (risk-attestation) as one
+    authoritative, fail-closed contract pair reused by static and PR validation.
+
+    `traceability.levels.<level>.requires.risk_attestation` is the sole deterministic
+    risk-attestation applicability authority; QG-005 level contracts determine
+    evidence content only. QG-003/QG-005 retain separate gate identities. A
+    migration-only compatibility adapter exists for exactly the pinned pre-Increment-B
+    base; every other base/workspace revision requires the Increment B schemas."""
+    try:
+        def read(path: str) -> str:
+            return git(repo, "show", f"{ref}:{path}") if ref else (repo / path).read_text(encoding="utf-8")
+
+        gates_doc = yaml.load(read("constitution/quality-gates.yaml"), Loader=GovernanceLoader)
+        if not isinstance(gates_doc, dict) or type(gates_doc.get("version")) is not int or gates_doc["version"] != 1:
+            raise ValueError("quality-gates.yaml requires version 1")
+        gates = gates_doc.get("gates")
+        if not isinstance(gates, list) or any(not isinstance(g, dict) or not isinstance(g.get("id"), str) for g in gates):
+            raise ValueError("gates must be a list of identified mappings")
+        ids = [g["id"] for g in gates]
+        if ids.count("QG-003") != 1:
+            raise ValueError("mandatory QG-003 declaration is missing or duplicated")
+        if ids.count("QG-005") != 1:
+            raise ValueError("mandatory QG-005 declaration is missing or duplicated")
+        qg003_gate = next(g for g in gates if g["id"] == "QG-003")
+        qg005_gate = next(g for g in gates if g["id"] == "QG-005")
+        legacy_qg003 = {"id": "QG-003", "name": "traceability-policy", "deterministic": True, "blocks_merge": True}
+        legacy_qg005 = {"id": "QG-005", "name": "risk-attestation", "deterministic": True, "blocks_merge": True}
+        bootstrap = ref is not None and git(repo, "rev-parse", ref).strip() == QG003_QG005_BOOTSTRAP_BASE
+
+        if bootstrap:
+            # Both exact legacy declarations must pass before any normalization occurs.
+            if qg003_gate != legacy_qg003:
+                raise ValueError("unexpected QG-003 bootstrap declaration")
+            if qg005_gate != legacy_qg005:
+                raise ValueError("unexpected QG-005 bootstrap declaration")
+            policies_doc = yaml.load(read("constitution/policies.yaml"), Loader=GovernanceLoader)
+            trace_policy = _parse_legacy_traceability_policy(policies_doc)
+            risk_policy = RiskAttestationPolicy(
+                "pull_request_body", "checked_markdown_line", "case_insensitive_substring",
+                {level: tuple(subs) for level, subs in LEGACY_RISK_ATTESTATION_SUBSTRINGS.items()},
+            )
+            _validate_risk_applicability_invariant(trace_policy, risk_policy)
+            return trace_policy, risk_policy
+
+        if qg003_gate == legacy_qg003 or qg005_gate == legacy_qg005:
+            raise ValueError("legacy QG-003/QG-005 declaration shape is supported only at the pinned bootstrap base")
+
+        policies_doc = yaml.load(read("constitution/policies.yaml"), Loader=GovernanceLoader)
+        schema003 = json.loads(read(QG003_SCHEMA))
+        schema005 = json.loads(read(QG005_SCHEMA))
+        Draft202012Validator.check_schema(schema003)
+        Draft202012Validator.check_schema(schema005)
+
+        errors = list(Draft202012Validator(schema003).iter_errors(
+            {"gate": qg003_gate, "policy": policies_doc.get("traceability")}))
+        if errors:
+            raise ValueError("QG-003: " + "; ".join(sorted(e.message for e in errors)))
+        errors = list(Draft202012Validator(schema005).iter_errors(
+            {"gate": qg005_gate, "policy": policies_doc.get("risk_attestation")}))
+        if errors:
+            raise ValueError("QG-005: " + "; ".join(sorted(e.message for e in errors)))
+
+        trace_raw = policies_doc["traceability"]
+        risk_raw = policies_doc["risk_attestation"]
+        trace_policy = TracePolicy(
+            {level: LevelPolicy(data["description"], dict(data["requires"]))
+             for level, data in trace_raw["levels"].items()},
+            tuple(trace_raw["escalation_triggers"]),
+            tuple(trace_raw["t2_path_triggers"]),
+        )
+        risk_policy = RiskAttestationPolicy(
+            risk_raw["evidence_source"], risk_raw["evidence_format"], risk_raw["match_mode"],
+            {level: tuple(data["required_substrings"]) for level, data in risk_raw["levels"].items()},
+        )
+        _validate_risk_applicability_invariant(trace_policy, risk_policy)
+        return trace_policy, risk_policy
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, yaml.YAMLError, SchemaError) as exc:
+        raise ValueError(f"traceability/risk-attestation governance ({ref or 'workspace'}): {exc}") from exc
+
+
+def attestation_satisfied(block: str, required_substrings: tuple[str, ...]) -> bool:
+    """QG-005 evidence check: a checked Markdown line containing each required
+    substring, matched case-insensitively. Content only; applicability is decided
+    solely by traceability.levels[level].requires.risk_attestation."""
+    return all(re.search(rf"(?mi)^\s*- \[[xX]\].*{re.escape(s)}", block) for s in required_substrings)
 
 
 def validate_learning_disposition(repo: Path, node: Any) -> None:
@@ -275,6 +447,11 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
     except ValueError as exc:
         result.error(str(exc))
         return {}
+    try:
+        trace_policy, _risk_policy = load_traceability_and_risk_gates(repo)
+    except ValueError as exc:
+        result.error(str(exc))
+        return {}
     trace_path = repo / "knowledge" / "traceability.yaml"
     trace = load_yaml(trace_path)
     validator = Draft202012Validator(load_json(repo / "knowledge/schemas/traceability.schema.json"))
@@ -316,7 +493,6 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
         provenance_exclusions(policies_doc)
     except ValueError as exc:
         result.error(f"constitution/policies.yaml: {exc}")
-    policies = policies_doc["traceability"]["levels"]
     tasks = trace.get("tasks", {})
     referenced: set[str] = set(tasks)
 
@@ -333,7 +509,7 @@ def validate_traceability(repo: Path, registry: dict[str, Artifact], result: Val
             )
 
         level = node.get("level")
-        requires = policies.get(level, {}).get("requires", {})
+        requires = trace_policy.levels[level].requires
         if requires.get("upstream_intent") and not node.get("intent"):
             result.error(f"{task_id} ({level}): requires upstream intent")
         if requires.get("design") and not node.get("design"):
@@ -529,23 +705,6 @@ def parse_change_owner_declarations(
     return declarations
 
 
-def has_risk_attestation(body: str, level: str) -> bool:
-    checked = lambda phrase: bool(re.search(rf"(?mi)^\s*- \[[xX]\].*{re.escape(phrase)}", body))
-    if level == "T1":
-        phrases = [
-            "does **NOT** affect architecture",
-            "does **NOT** affect NFRs",
-            "does **NOT** affect security",
-            "does **NOT** affect persistent data",
-            "does **NOT** affect public/external API",
-            "does **NOT** create a compliance",
-        ]
-        return all(checked(p) for p in phrases)
-    if level == "T2":
-        return checked("material design change")
-    return True
-
-
 def path_matches(changed: list[str], patterns: list[str]) -> bool:
     for path in changed:
         for pattern in patterns:
@@ -566,6 +725,10 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
         # self-sufficient even when called without validate_traceability first.
         load_structural_gates(repo, base_ref)
         load_structural_gates(repo)
+        # QG-003/QG-005: base governance is a lower bound on the surviving proposed
+        # evidence; both revisions are loaded and enforced independently below.
+        trace_policy_base, risk_policy_base = load_traceability_and_risk_gates(repo, base_ref)
+        trace_policy_proposed, risk_policy_proposed = load_traceability_and_risk_gates(repo)
         messages = commit_messages(repo, base_ref, head_ref)
         base_messages = reachable_commit_messages(repo, base_ref)
         files = changed_files(repo, base_ref, head_ref)
@@ -581,14 +744,19 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
             Loader=GovernanceLoader,
         )
         load_change_provenance_policy(policies_doc)  # Validate proposed policy; never self-authorize.
+        base_trace_doc = yaml.load(
+            git(repo, "show", f"{base_ref}:knowledge/traceability.yaml"), Loader=GovernanceLoader
+        )
+        if not isinstance(base_trace_doc, dict) or not isinstance(base_trace_doc.get("tasks"), dict):
+            raise ValueError("base knowledge/traceability.yaml must be a mapping with a tasks mapping")
+        base_tasks = base_trace_doc["tasks"]
     except (RuntimeError, ValueError, yaml.YAMLError) as exc:
         result.error(f"git evidence: {exc}")
         return
 
-    t2_path_triggers = (
-        base_policies.get("traceability", {}).get("t2_path_triggers", [])
-        + policies_doc.get("traceability", {}).get("t2_path_triggers", [])
-    )
+    # Both base and proposed T2 path triggers remain independently effective: a path
+    # matching either revision's set still requires covering T2 task declaration.
+    t2_path_triggers = list(trace_policy_base.t2_path_triggers) + list(trace_policy_proposed.t2_path_triggers)
     declarations = parse_pr_declarations(body, result)
     change_owners = parse_change_owner_declarations(body, base_provenance.owner_kinds, result)
     valid_change_owners = []
@@ -604,20 +772,53 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
             (declaration, base_provenance.owner_kinds[declaration.kind])
         )
     declared_nodes = []
+    declared_task_ids = {task_id for task_id, _, _ in declarations}
     for task_id, declared_level, block in declarations:
         node = trace.get("tasks", {}).get(task_id)
         if not node:
             result.error(f"PR body: declared task {task_id} is not present in traceability")
             continue
         declared_nodes.append(node)
-        actual_level = node.get("level")
-        if declared_level != actual_level:
-            result.error(f"PR body: declared level {declared_level!r} != {task_id} level {actual_level!r}")
-        if actual_level in {"T1", "T2"}:
-            if not has_risk_attestation(block, actual_level):
-                result.error(f"PR body: {task_id} {actual_level} risk attestation is incomplete")
+        proposed_level = node.get("level")
+        if declared_level != proposed_level:
+            result.error(f"PR body: declared level {declared_level!r} != {task_id} level {proposed_level!r}")
+
+        base_node = base_tasks.get(task_id)
+        if base_node is not None:
+            # Existing task: base obligations are recovered from the historical base
+            # level and applied to the surviving PROPOSED evidence, never the other
+            # way around, so a proposed downgrade cannot erase a base requirement.
+            revisions = (("base", base_node.get("level"), trace_policy_base, risk_policy_base),
+                         ("proposed", proposed_level, trace_policy_proposed, risk_policy_proposed))
+        else:
+            # New task: no fictitious historical base level is invented. The task's
+            # real proposed level is used as the lookup key in BOTH policy revisions,
+            # so a proposed weakening cannot exempt the very task it introduces.
+            revisions = (("base", proposed_level, trace_policy_base, risk_policy_base),
+                         ("proposed", proposed_level, trace_policy_proposed, risk_policy_proposed))
+
+        for revision, level, tpolicy, rpolicy in revisions:
+            level_policy = tpolicy.levels.get(level)
+            if level_policy is None:
+                continue
+            requires = level_policy.requires
+            if requires.get("upstream_intent") and not node.get("intent"):
+                result.error(f"{task_id} ({revision} {level}): requires upstream intent")
+            if requires.get("design") and not node.get("design"):
+                result.error(f"{task_id} ({revision} {level}): requires design evidence")
+            if requires.get("decision_or_contract") and not (node.get("decisions") or node.get("contracts")):
+                result.error(f"{task_id} ({revision} {level}): requires at least one decision or contract")
+            if requires.get("verification") and not node.get("verification"):
+                result.error(f"{task_id} ({revision} {level}): requires verification evidence")
+            if requires.get("implementation") and not node.get("implementation", {}).get("paths"):
+                result.error(f"{task_id} ({revision} {level}): requires implementation.paths")
+            if requires.get("risk_attestation"):
+                required_substrings = rpolicy.levels.get(level, ())
+                if not attestation_satisfied(block, required_substrings):
+                    result.error(f"PR body: {task_id} {revision} {level} risk attestation is incomplete")
+
         for gate in evidence_gates:
-            if actual_level not in gate.levels:
+            if proposed_level not in gate.levels:
                 continue
             marker = gate.marker_format.replace("DEV-n", task_id)
             if gate.require_commit_marker and not any(marker in msg for msg in messages):
@@ -628,6 +829,15 @@ def validate_change_evidence(repo: Path, trace: dict[str, Any], body: str, base_
                     f"git evidence: diff does not touch any declared implementation path for {task_id}; "
                     f"declared={patterns}, changed={files}"
                 )
+
+    # A base task absent from proposed traceability cannot silently drop its
+    # obligations when it remains relevant to this PR (declared, or a changed path
+    # matches its base implementation.paths). No successor/lifecycle inference.
+    for task_id in sorted(set(base_tasks) - set(trace.get("tasks", {}))):
+        base_node = base_tasks[task_id]
+        base_patterns = base_node.get("implementation", {}).get("paths", []) if isinstance(base_node, dict) else []
+        if task_id in declared_task_ids or path_matches(files, base_patterns):
+            result.error(f"{task_id}: base task is relevant to this PR but is absent from proposed traceability")
 
     for path in files:
         task_owners = [node for node in declared_nodes

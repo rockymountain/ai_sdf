@@ -327,6 +327,9 @@ tasks:
       paths:
         - constitution/policies.yaml
         - constitution/quality-gates.yaml
+        - knowledge/schemas/traceability-policy-gate.schema.json
+        - knowledge/schemas/risk-attestation-gate.schema.json
+        - design/architecture/CMP-002.md
         - .github/PULL_REQUEST_TEMPLATE.md
         - design/requirements/FR-009.md
         - design/decisions/ADR-010.md
